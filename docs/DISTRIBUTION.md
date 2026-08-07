@@ -29,13 +29,19 @@ automated, and every public post goes out under his own name and review.
 - [ ] Tag `v0.1.0` and cut a GitHub Release with the report card for your own machine in
       the release notes. The report card *is* the marketing.
 
-## Phase 2 - make it citable
+## Phase 2 - make it citable  (DONE 2026-08-07)
 
-- [ ] Log in to Zenodo with GitHub, flip the switch for the `llama-roofline` repo.
-- [ ] Re-cut the `v0.1.0` release (Zenodo only captures releases created after the switch
-      is on). Confirm `.zenodo.json` and `CITATION.cff` were picked up.
-- [ ] Add the DOI badge to the top of the README and the DOI to `CITATION.cff`.
+- [x] Log in to Zenodo with GitHub, flip the switch for the `llama-roofline` repo.
+- [x] Cut the `v0.1.0` release. **Note for next time:** the first attempt archived as
+      *Failed* with no error shown in Zenodo's UI. Cause was `.zenodo.json`: the relation
+      `isBasedOn` is not in Zenodo's vocabulary, and the license needs the lowercase SPDX
+      id `mit`. Fixed, then the release was deleted and re-cut, which Zenodo reprocessed
+      cleanly. If a future release shows Failed, look there first.
+- [x] Add the DOI badge to the README and the DOIs to `CITATION.cff`.
+      Concept DOI `10.5281/zenodo.21842493` (always latest);
+      v0.1.0 DOI `10.5281/zenodo.21842494`.
 - [ ] Add the software DOI to ORCID (0009-0007-6589-6572).
+- [ ] Optional: submit the record to a relevant Zenodo community.
 
 ## Phase 3 - PyPI
 

@@ -3,6 +3,7 @@
 **Is your llama.cpp setup memory-bandwidth-bound? Find out in one command.**
 
 [![tests](https://github.com/manunicholasjacob/llama-roofline/actions/workflows/ci.yml/badge.svg)](https://github.com/manunicholasjacob/llama-roofline/actions/workflows/ci.yml)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21842493.svg)](https://doi.org/10.5281/zenodo.21842493)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 When a local LLM generates text one token at a time, it has to read **every weight in the
@@ -257,7 +258,10 @@ If this tool is useful in something you publish or post, please cite it. See
 [`CITATION.cff`](CITATION.cff), or:
 
 > M. N. Jacob, *llama-roofline: a portable memory-bandwidth roofline for llama.cpp*,
-> v0.1.0, 2026. https://github.com/manunicholasjacob/llama-roofline
+> v0.1.0, 2026. doi:[10.5281/zenodo.21842493](https://doi.org/10.5281/zenodo.21842493)
+
+`10.5281/zenodo.21842493` is the concept DOI and always resolves to the newest version.
+To cite this exact release, use `10.5281/zenodo.21842494`.
 
 The methodology comes from a study of LLM inference on a 2 GB Raspberry Pi 5 and an x86
 laptop, currently under review; the reproducibility artifact for that work is at
