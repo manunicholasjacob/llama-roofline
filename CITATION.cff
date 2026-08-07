@@ -1,0 +1,35 @@
+cff-version: 1.2.0
+title: "llama-roofline: a portable memory-bandwidth roofline for llama.cpp"
+message: "If you use this tool in a publication or benchmark report, please cite it."
+type: software
+authors:
+  - given-names: "Manu Nicholas"
+    family-names: "Jacob"
+    orcid: "https://orcid.org/0009-0007-6589-6572"
+repository-code: "https://github.com/manunicholasjacob/llama-roofline"
+url: "https://github.com/manunicholasjacob/llama-roofline"
+abstract: >-
+  A command-line tool that measures whether llama.cpp token generation on a given
+  machine is limited by memory bandwidth. It measures the machine's sustainable
+  memory-read bandwidth with a portable microbenchmark, benchmarks the user's own
+  GGUF models with llama-bench across a thread sweep, fits the decode roofline
+  tok/s = BW_eff / model_bytes, and reports the resulting bandwidth utilisation
+  together with the optimal quantization and thread configuration.
+keywords:
+  - llama.cpp
+  - large language models
+  - roofline model
+  - memory bandwidth
+  - quantization
+  - edge inference
+license: MIT
+version: 0.1.0
+date-released: "2026-08-07"
+references:
+  - type: software
+    title: "llama.cpp"
+    authors:
+      - name: "The llama.cpp contributors"
+    repository-code: "https://github.com/ggml-org/llama.cpp"
+    license: MIT
+    notes: "The inference engine this tool drives; all throughput numbers come from llama-bench."

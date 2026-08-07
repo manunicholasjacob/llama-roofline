@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+.pytest_cache/
+.venv/
+venv/
+env/
+.tox/
+
+# tool output
+llama-roofline-out/
+*.gguf
+
+.DS_Store
+.idea/
+.vscode/

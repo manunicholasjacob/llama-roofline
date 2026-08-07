@@ -1,0 +1,67 @@
+========================================================================
+  llama-roofline v0.1.0  --  report card
+========================================================================
+  Machine   : Raspberry Pi 5 (Broadcom BCM2712, Cortex-A76 @ 2.4 GHz)
+              4 logical / 4 physical cores, 2.0 GB RAM, Linux aarch64
+  Memory    : 14.0 GB/s (external STREAM-style read benchmark for this board)
+  llama.cpp : build ?, backends: CPU
+
+  IS YOUR DECODE MEMORY-BOUND?
+------------------------------------------------------------------------
+  YES -- your decode is memory-bandwidth-bound.
+
+  Token generation is running at 77% of the memory bandwidth this
+  machine can actually sustain. The CPU spends most of each token
+  waiting for weights to arrive from RAM, not computing.
+
+  THE ROOFLINE
+------------------------------------------------------------------------
+    decode tok/s  =  10.69 GB/s  /  model bytes
+    fitted across 7 models, R^2 = 0.9800
+    that effective bandwidth is 76% of your 14.0 GB/s ceiling
+    A fit this tight means one number -- bytes -- predicts your
+    generation speed. You can size a model for a target tok/s.
+
+  WHAT TO DO ABOUT IT
+------------------------------------------------------------------------
+  * Model size is your throughput dial. Halving the bytes you load
+    roughly doubles tok/s: a smaller model or a lower quant buys speed
+    almost exactly in proportion to the bytes it removes.
+  * Measured on your models: Qwen2.5-0.5B Q2_K is 2.91x smaller than
+    Qwen2.5-1.5B Q4_K_M and decodes 2.55x faster. Bytes in, tokens out.
+  * Best decode thread count: 2. Past that, extra threads add
+    contention, not throughput: decode is waiting on memory, and more
+    waiters do not make the memory faster.
+  * Using every thread cost up to 21% of decode throughput versus the
+    best setting. Set -t explicitly; do not let it default.
+  * Prefill is different: it scaled 3.3x with threads (median across
+    your models). Prompt processing is compute-bound, so long-prompt
+    workloads DO want all your cores even though generation does not.
+
+  YOUR MODELS
+------------------------------------------------------------------------
+  model                     quant         size    decode   prefill  thr    GB/s  %ceil
+  ------------------------------------------------------------------------------------
+  Qwen2.5-0.5B Q2_K         Q2_K        339 MB     31.1t      148t    4    10.5    75%
+  Qwen2.5-0.5B Q3_K_M       Q3_K_M      355 MB     29.1t      197t    4    10.4    74%
+  Qwen2.5-0.5B Q4_K_M       Q4_K_M      398 MB     28.1t       89t    3    11.2    80%
+  Qwen2.5-0.5B Q5_K_M       Q5_K_M      420 MB     25.5t       79t    4    10.7    77%
+  Qwen2.5-0.5B Q8_0         Q8_0        531 MB     19.1t      249t    4    10.1    73%
+  Llama-3.2-1B Q4_K_M       Q4_K_M      808 MB     14.4t       62t    2    11.6    83%
+  Qwen2.5-1.5B Q4_K_M       Q4_K_M      986 MB     12.2t       55t    2    12.0    86%
+
+  CAVEATS
+------------------------------------------------------------------------
+  ! converted data: measurements come from the published Raspberry Pi 5
+    study, not from a native llama-roofline run. Bytes-per-token uses
+    the GGUF file size rather than llama-bench's model_size, so
+    utilisation reads ~1-2% high. See convert_paper_data.py for the full
+    provenance note.
+  * bytes-per-token is taken as the model's resident size. That is exact
+    for a dense transformer at short context and an overestimate once
+    the KV cache grows large, or for MoE models.
+  * The ceiling was supplied rather than measured by this tool, so every
+    percentage here is only as good as that number.
+  * Numbers are throughput only. Nothing here measures output quality.
+
+========================================================================

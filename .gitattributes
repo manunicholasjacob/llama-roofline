@@ -1,0 +1,3 @@
+# Keep the repository LF regardless of the platform it was authored on.
+* text=auto eol=lf
+*.png binary

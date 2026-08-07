@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llama-roofline"
+version = "0.1.0"
+description = "Is your llama.cpp decode memory-bandwidth-bound? Measure it, in one command."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Manu Nicholas Jacob" }]
+keywords = [
+    "llama.cpp", "llm", "roofline", "memory-bandwidth", "benchmark",
+    "quantization", "gguf", "inference", "edge-ai", "local-llm",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: System :: Benchmark",
+]
+# A default install should work end to end on first run: numpy measures the bandwidth
+# ceiling and matplotlib draws the figure. Neither is needed by the analysis core, which
+# is pure standard library, and the tool degrades cleanly if they are absent (see the
+# no-optional-deps job in CI) -- but a user typing `pip install llama-roofline` should not
+# have to discover that by having the headline feature fail.
+dependencies = ["numpy>=1.20", "matplotlib>=3.4"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.urls]
+Homepage = "https://github.com/manunicholasjacob/llama-roofline"
+Issues = "https://github.com/manunicholasjacob/llama-roofline/issues"
+
+[project.scripts]
+llama-roofline = "llama_roofline.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

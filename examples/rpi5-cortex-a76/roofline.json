@@ -1,0 +1,360 @@
+{
+  "schema_version": 1,
+  "tool_version": "0.1.0",
+  "generated_utc": "2026-08-07T14:02:58Z",
+  "provenance": "converted from published llama-bench data; see convert_paper_data.py",
+  "system": {
+    "os": "Linux",
+    "os_release": "6.x (Raspberry Pi OS, 64-bit)",
+    "machine": "aarch64",
+    "cpu": "Raspberry Pi 5 (Broadcom BCM2712, Cortex-A76 @ 2.4 GHz)",
+    "logical_cores": 4,
+    "physical_cores": 4,
+    "ram_bytes": 2000000000
+  },
+  "llama_cpp": {
+    "backends": "CPU",
+    "notes": "native aarch64 build, ARM dotprod kernels"
+  },
+  "settings": {
+    "threads": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "n_prompt": 512,
+    "n_gen": 128,
+    "reps": 3,
+    "gpu_layers": 0,
+    "notes": "quant-sweep points were measured at 4 threads with -p 128"
+  },
+  "membw": {
+    "peak_read_GBs": 13.98,
+    "source": "external STREAM-style read benchmark for this board"
+  },
+  "analysis": {
+    "models": [
+      {
+        "name": "Qwen2.5-0.5B Q4_K_M",
+        "quant": "Q4_K_M",
+        "arch": null,
+        "is_moe": false,
+        "file_bytes": 397808192,
+        "bytes_per_token": 397808192,
+        "bytes_source": "GGUF file size (source data predates model_size capture)",
+        "runs": [
+          {
+            "threads": 1,
+            "decode_ts": 16.90055,
+            "prefill_ts": 23.50277
+          },
+          {
+            "threads": 2,
+            "decode_ts": 25.808607,
+            "prefill_ts": 46.495322
+          },
+          {
+            "threads": 3,
+            "decode_ts": 28.054111,
+            "prefill_ts": 67.960034
+          },
+          {
+            "threads": 4,
+            "decode_ts": 26.840484,
+            "prefill_ts": 89.272735
+          }
+        ],
+        "ok": true,
+        "decode_ts": 28.054111,
+        "decode_threads": 3,
+        "decode_stddev_ts": null,
+        "prefill_ts": 89.272735,
+        "prefill_threads": 4,
+        "prefill_scaling": 3.7983920618718554,
+        "prefill_scaling_threads": [
+          1,
+          4
+        ],
+        "decode_bw_GBs": 11.160155175077312,
+        "decode_thread_knee": 3,
+        "decode_loss_at_max_threads_pct": 4.326021950936177,
+        "bw_util_pct": 79.82943615935129
+      },
+      {
+        "name": "Llama-3.2-1B Q4_K_M",
+        "quant": "Q4_K_M",
+        "arch": null,
+        "is_moe": false,
+        "file_bytes": 807694464,
+        "bytes_per_token": 807694464,
+        "bytes_source": "GGUF file size (source data predates model_size capture)",
+        "runs": [
+          {
+            "threads": 1,
+            "decode_ts": 10.254427,
+            "prefill_ts": 22.345998
+          },
+          {
+            "threads": 2,
+            "decode_ts": 14.411798,
+            "prefill_ts": 43.495787
+          },
+          {
+            "threads": 3,
+            "decode_ts": 12.819465,
+            "prefill_ts": 61.406662
+          },
+          {
+            "threads": 4,
+            "decode_ts": 11.402343,
+            "prefill_ts": 61.685069
+          }
+        ],
+        "ok": true,
+        "decode_ts": 14.411798,
+        "decode_threads": 2,
+        "decode_stddev_ts": null,
+        "prefill_ts": 61.685069,
+        "prefill_threads": 4,
+        "prefill_scaling": 2.760452632278943,
+        "prefill_scaling_threads": [
+          1,
+          4
+        ],
+        "decode_bw_GBs": 11.64032946088627,
+        "decode_thread_knee": 2,
+        "decode_loss_at_max_threads_pct": 20.881884411646624,
+        "bw_util_pct": 83.26415923380738
+      },
+      {
+        "name": "Qwen2.5-1.5B Q4_K_M",
+        "quant": "Q4_K_M",
+        "arch": null,
+        "is_moe": false,
+        "file_bytes": 986048768,
+        "bytes_per_token": 986048768,
+        "bytes_source": "GGUF file size (source data predates model_size capture)",
+        "runs": [
+          {
+            "threads": 1,
+            "decode_ts": 8.671205,
+            "prefill_ts": 16.548411
+          },
+          {
+            "threads": 2,
+            "decode_ts": 12.197675,
+            "prefill_ts": 31.443843
+          },
+          {
+            "threads": 3,
+            "decode_ts": 11.235362,
+            "prefill_ts": 45.776122
+          },
+          {
+            "threads": 4,
+            "decode_ts": 10.336589,
+            "prefill_ts": 55.265216
+          }
+        ],
+        "ok": true,
+        "decode_ts": 12.197675,
+        "decode_threads": 2,
+        "decode_stddev_ts": null,
+        "prefill_ts": 55.265216,
+        "prefill_threads": 4,
+        "prefill_scaling": 3.3396086186160105,
+        "prefill_scaling_threads": [
+          1,
+          4
+        ],
+        "decode_bw_GBs": 12.0275024062144,
+        "decode_thread_knee": 2,
+        "decode_loss_at_max_threads_pct": 15.257710998202523,
+        "bw_util_pct": 86.03363666820027
+      },
+      {
+        "name": "Qwen2.5-0.5B Q2_K",
+        "quant": "Q2_K",
+        "arch": null,
+        "is_moe": false,
+        "file_bytes": 338607520,
+        "bytes_per_token": 338607520,
+        "bytes_source": "GGUF file size (source data predates model_size capture)",
+        "runs": [
+          {
+            "threads": 4,
+            "decode_ts": 31.129119,
+            "prefill_ts": 147.728078
+          }
+        ],
+        "ok": true,
+        "decode_ts": 31.129119,
+        "decode_threads": 4,
+        "decode_stddev_ts": null,
+        "prefill_ts": 147.728078,
+        "prefill_threads": 4,
+        "decode_bw_GBs": 10.54055378437488,
+        "decode_thread_knee": 4,
+        "bw_util_pct": 75.3973804318661
+      },
+      {
+        "name": "Qwen2.5-0.5B Q3_K_M",
+        "quant": "Q3_K_M",
+        "arch": null,
+        "is_moe": false,
+        "file_bytes": 355466656,
+        "bytes_per_token": 355466656,
+        "bytes_source": "GGUF file size (source data predates model_size capture)",
+        "runs": [
+          {
+            "threads": 4,
+            "decode_ts": 29.117748,
+            "prefill_ts": 197.238682
+          }
+        ],
+        "ok": true,
+        "decode_ts": 29.117748,
+        "decode_threads": 4,
+        "decode_stddev_ts": null,
+        "prefill_ts": 197.238682,
+        "prefill_threads": 4,
+        "decode_bw_GBs": 10.350388511810689,
+        "decode_thread_knee": 4,
+        "bw_util_pct": 74.03711381838832
+      },
+      {
+        "name": "Qwen2.5-0.5B Q5_K_M",
+        "quant": "Q5_K_M",
+        "arch": null,
+        "is_moe": false,
+        "file_bytes": 420086336,
+        "bytes_per_token": 420086336,
+        "bytes_source": "GGUF file size (source data predates model_size capture)",
+        "runs": [
+          {
+            "threads": 4,
+            "decode_ts": 25.536121,
+            "prefill_ts": 79.474478
+          }
+        ],
+        "ok": true,
+        "decode_ts": 25.536121,
+        "decode_threads": 4,
+        "decode_stddev_ts": null,
+        "prefill_ts": 79.474478,
+        "prefill_threads": 4,
+        "decode_bw_GBs": 10.727375506542655,
+        "decode_thread_knee": 4,
+        "bw_util_pct": 76.73373037584159
+      },
+      {
+        "name": "Qwen2.5-0.5B Q8_0",
+        "quant": "Q8_0",
+        "arch": null,
+        "is_moe": false,
+        "file_bytes": 531068480,
+        "bytes_per_token": 531068480,
+        "bytes_source": "GGUF file size (source data predates model_size capture)",
+        "runs": [
+          {
+            "threads": 4,
+            "decode_ts": 19.085168,
+            "prefill_ts": 249.300513
+          }
+        ],
+        "ok": true,
+        "decode_ts": 19.085168,
+        "decode_threads": 4,
+        "decode_stddev_ts": null,
+        "prefill_ts": 249.300513,
+        "prefill_threads": 4,
+        "decode_bw_GBs": 10.13553116030464,
+        "decode_thread_knee": 4,
+        "bw_util_pct": 72.50022289202174
+      }
+    ],
+    "peak_read_GBs": 13.98,
+    "n_models_ok": 7,
+    "warnings": [
+      "converted data: measurements come from the published Raspberry Pi 5 study, not from a native llama-roofline run. Bytes-per-token uses the GGUF file size rather than llama-bench's model_size, so utilisation reads ~1-2% high. See convert_paper_data.py for the full provenance note."
+    ],
+    "fit": {
+      "bw_eff_GBs": 10.691668654986728,
+      "bw_eff_bytes_s": 10691668654.986729,
+      "r2": 0.9799779478820194,
+      "n_points": 7,
+      "models": [
+        "Qwen2.5-0.5B Q4_K_M",
+        "Llama-3.2-1B Q4_K_M",
+        "Qwen2.5-1.5B Q4_K_M",
+        "Qwen2.5-0.5B Q2_K",
+        "Qwen2.5-0.5B Q3_K_M",
+        "Qwen2.5-0.5B Q5_K_M",
+        "Qwen2.5-0.5B Q8_0"
+      ]
+    },
+    "verdict": "memory-bound",
+    "bw_util_pct": {
+      "min": 72.50022289202174,
+      "max": 86.03363666820027,
+      "median": 76.73373037584159
+    },
+    "frontier": [
+      {
+        "name": "Qwen2.5-0.5B Q2_K",
+        "quant": "Q2_K",
+        "bytes": 338607520,
+        "decode_ts": 31.129119
+      },
+      {
+        "name": "Qwen2.5-0.5B Q3_K_M",
+        "quant": "Q3_K_M",
+        "bytes": 355466656,
+        "decode_ts": 29.117748
+      },
+      {
+        "name": "Qwen2.5-0.5B Q4_K_M",
+        "quant": "Q4_K_M",
+        "bytes": 397808192,
+        "decode_ts": 28.054111
+      },
+      {
+        "name": "Qwen2.5-0.5B Q5_K_M",
+        "quant": "Q5_K_M",
+        "bytes": 420086336,
+        "decode_ts": 25.536121
+      },
+      {
+        "name": "Qwen2.5-0.5B Q8_0",
+        "quant": "Q8_0",
+        "bytes": 531068480,
+        "decode_ts": 19.085168
+      },
+      {
+        "name": "Llama-3.2-1B Q4_K_M",
+        "quant": "Q4_K_M",
+        "bytes": 807694464,
+        "decode_ts": 14.411798
+      },
+      {
+        "name": "Qwen2.5-1.5B Q4_K_M",
+        "quant": "Q4_K_M",
+        "bytes": 986048768,
+        "decode_ts": 12.197675
+      }
+    ],
+    "frontier_span": {
+      "smallest": "Qwen2.5-0.5B Q2_K",
+      "largest": "Qwen2.5-1.5B Q4_K_M",
+      "size_ratio": 2.912069903231919,
+      "speed_ratio": 2.552053485602789
+    },
+    "decode_thread_knee": 2,
+    "prefill_scaling": 3.3396086186160105,
+    "prefill_scaling_range": [
+      2.760452632278943,
+      3.7983920618718554
+    ]
+  }
+}

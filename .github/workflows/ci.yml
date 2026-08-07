@@ -1,0 +1,68 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.9", "3.12", "3.13"]
+        exclude:
+          # macos-latest runners are arm64; 3.9 wheels are not published for it.
+          - os: macos-latest
+            python-version: "3.9"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Run tests
+        run: python -m pytest -q
+      - name: Smoke-test the CLI
+        run: |
+          llama-roofline --version
+          llama-roofline membw --membw-mb 64 --membw-reps 1
+
+  no-optional-deps:
+    # The package must import and report without numpy or matplotlib installed.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # --no-deps is the whole point of this job: numpy and matplotlib are ordinary
+      # dependencies now, so a plain install would quietly provide them.
+      - run: python -m pip install -e . --no-deps
+      - name: Confirm neither optional dependency is present
+        run: |
+          python -c "
+          import importlib.util, sys
+          for mod in ('numpy', 'matplotlib'):
+              if importlib.util.find_spec(mod) is not None:
+                  sys.exit(f'{mod} is installed; this job would not test anything')
+          print('numpy and matplotlib are both absent, as intended')
+          "
+      - run: |
+          llama-roofline --version
+          python -c "
+          from llama_roofline import roofline, report
+          a = roofline.analyze([
+            {'name':'a','bytes_per_token':400_000_000,'runs':[{'threads':4,'decode_ts':30.0,'prefill_ts':100.0}]},
+            {'name':'b','bytes_per_token':800_000_000,'runs':[{'threads':4,'decode_ts':15.0,'prefill_ts':60.0}]},
+          ], 14.0)
+          assert a['fit']['bw_eff_GBs'] > 0
+          assert 'report card' in report.render({'analysis': a, 'system': {}})
+          print('ok without numpy/matplotlib')
+          "
