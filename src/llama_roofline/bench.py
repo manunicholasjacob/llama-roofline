@@ -144,21 +144,25 @@ def parse_bench_json(raw: str) -> Dict[str, Any]:
 
 def bench_model(binary: str, model_path: str, threads: int,
                 n_prompt: int = 128, n_gen: int = 128, reps: int = 3,
-                ctx: Optional[int] = None, gpu_layers: Optional[int] = None,
+                depth: Optional[int] = None, gpu_layers: Optional[int] = None,
                 extra_args: Optional[List[str]] = None,
                 timeout: Optional[float] = 3600.0) -> Dict[str, Any]:
     """Run one llama-bench invocation and return parsed prefill/decode throughput.
 
     ``n_prompt`` must be > 0: with ``-p 0`` some llama.cpp builds report a spuriously
     low generation rate, so we always run a real (small) prompt alongside generation.
+
+    ``depth`` maps to llama-bench's ``-d``: generate with that many tokens already in the
+    KV cache. Note there is no context-size flag to set here; llama-bench sizes the context
+    from n_prompt, n_gen and n_depth itself.
     """
     if n_prompt <= 0:
         raise ValueError("n_prompt must be > 0 (llama-bench reports bogus tg with -p 0)")
 
     cmd = [binary, "-m", model_path, "-t", str(threads),
            "-p", str(n_prompt), "-n", str(n_gen), "-r", str(reps), "-o", "json"]
-    if ctx:
-        cmd += ["-c", str(ctx)]
+    if depth:
+        cmd += ["-d", str(depth)]
     if gpu_layers is not None:
         cmd += ["-ngl", str(gpu_layers)]
     if extra_args:

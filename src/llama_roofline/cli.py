@@ -165,7 +165,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             try:
                 r = bench.bench_model(
                     binary, path, threads=t, n_prompt=args.n_prompt, n_gen=args.n_gen,
-                    reps=args.reps, ctx=args.ctx, gpu_layers=args.gpu_layers,
+                    reps=args.reps, depth=args.depth, gpu_layers=args.gpu_layers,
                     extra_args=args.bench_arg, timeout=args.timeout,
                 )
             except bench.BenchError as exc:
@@ -212,7 +212,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         "llama_cpp": {**bench.bench_version(binary), **build_info},
         "settings": {
             "threads": threads, "n_prompt": args.n_prompt, "n_gen": args.n_gen,
-            "reps": args.reps, "ctx": args.ctx, "gpu_layers": args.gpu_layers,
+            "reps": args.reps, "depth": args.depth, "gpu_layers": args.gpu_layers,
             "extra_bench_args": args.bench_arg,
         },
         "membw": mem,
@@ -353,7 +353,11 @@ def build_parser() -> argparse.ArgumentParser:
                    help="tokens to generate for the decode test (default: 128)")
     r.add_argument("--reps", type=int, default=3, metavar="N",
                    help="llama-bench repetitions per test (default: 3)")
-    r.add_argument("--ctx", type=int, default=None, metavar="N", help="context size override")
+    r.add_argument("--depth", type=int, default=None, metavar="N",
+                   help="generate with N tokens already in the KV cache (llama-bench -d). "
+                        "Use this to see how far your decode falls off the weights-only "
+                        "roofline at a realistic context length. Note llama-bench has no "
+                        "context-size flag; it sizes the context from these values itself.")
     r.add_argument("--gpu-layers", type=int, default=0, metavar="N",
                    help="layers to offload (default: 0 -- a CPU/system-RAM roofline. Use -1 "
                         "for llama.cpp's automatic offload, but note the ceiling measured here "

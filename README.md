@@ -135,9 +135,13 @@ llama-roofline report out/roofline.json --markdown report.md
 ```
 
 Useful flags: `--llama-bench PATH` if it is not found automatically (or set `$LLAMA_BENCH`),
-`--n-gen` / `--n-prompt` to change the generation and prompt lengths, `--ctx` to set the
-context size, `--gpu-layers` (default `0`, see limitations), `--out DIR`, `--no-plot`,
-`--quiet`. `llama-roofline run --help` lists everything.
+`--n-gen` / `--n-prompt` to change the generation and prompt lengths, `--depth N` to
+generate with N tokens already in the KV cache, `--gpu-layers` (default `0`, see
+limitations), `--out DIR`, `--no-plot`, `--quiet`. `llama-roofline run --help` lists
+everything.
+
+`--depth` is the one to reach for if you run long contexts, because the weights-only
+roofline is a short-context result. See [Long context](#long-context) below.
 
 ## Output
 

@@ -96,7 +96,15 @@ def test_parser_defaults():
     args = cli.build_parser().parse_args(["run", "--models", "x.gguf"])
     assert args.n_prompt == 128 and args.n_gen == 128 and args.reps == 3
     assert args.gpu_layers == 0          # a CPU/system-RAM roofline by default
+    assert args.depth is None
     assert args.command == "run"
+
+
+def test_ctx_flag_is_gone(capsys):
+    """--ctx passed llama-bench -c, which modern builds reject outright."""
+    with pytest.raises(SystemExit):
+        cli.build_parser().parse_args(["run", "--models", "x.gguf", "--ctx", "4096"])
+    assert "unrecognized arguments" in capsys.readouterr().err
 
 
 def test_version_flag(capsys):

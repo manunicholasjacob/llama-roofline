@@ -103,3 +103,51 @@ def test_summarize_stderr_falls_back_when_nothing_matches():
     assert bench.summarize_stderr("load_backend: loaded CPU backend") != ""
     # No line contains "error"/"failed": keep the last real lines rather than nothing.
     assert "killed" in bench.summarize_stderr("load_backend: x\nkilled")
+
+
+class _FakeProc:
+    returncode = 0
+
+    def __init__(self, payload):
+        self.stdout = payload.encode()
+        self.stderr = b""
+
+
+def _capture_cmd(monkeypatch):
+    """Run bench_model against a stubbed subprocess and return the argv it built."""
+    seen = {}
+
+    def fake_run(cmd, **kwargs):
+        seen["cmd"] = cmd
+        return _FakeProc(json.dumps([PREFILL, DECODE]))
+
+    monkeypatch.setattr(bench.subprocess, "run", fake_run)
+    return seen
+
+
+def test_depth_maps_to_the_d_flag(monkeypatch):
+    seen = _capture_cmd(monkeypatch)
+    bench.bench_model("llama-bench", "m.gguf", threads=8, depth=8192)
+    assert "-d" in seen["cmd"]
+    assert seen["cmd"][seen["cmd"].index("-d") + 1] == "8192"
+
+
+def test_never_emits_a_context_flag(monkeypatch):
+    """Regression: modern llama-bench rejects -c, so the tool must never pass it."""
+    seen = _capture_cmd(monkeypatch)
+    bench.bench_model("llama-bench", "m.gguf", threads=8, depth=4096, gpu_layers=0)
+    assert "-c" not in seen["cmd"]
+    assert "--ctx" not in seen["cmd"]
+    assert "--n-ctx" not in seen["cmd"]
+
+
+def test_no_depth_flag_when_unset(monkeypatch):
+    seen = _capture_cmd(monkeypatch)
+    bench.bench_model("llama-bench", "m.gguf", threads=8)
+    assert "-d" not in seen["cmd"]
+
+
+def test_extra_bench_args_are_passed_through(monkeypatch):
+    seen = _capture_cmd(monkeypatch)
+    bench.bench_model("llama-bench", "m.gguf", threads=8, extra_args=["-ctk", "q8_0"])
+    assert seen["cmd"][-2:] == ["-ctk", "q8_0"]
