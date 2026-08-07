@@ -43,20 +43,34 @@ automated, and every public post goes out under his own name and review.
 - [ ] Add the software DOI to ORCID (0009-0007-6589-6572).
 - [ ] Optional: submit the record to a relevant Zenodo community.
 
-## Phase 3 - PyPI
+## Phase 3 - PyPI  (DECIDED AGAINST, 2026-08-07)
 
-- [ ] `python -m build` then `twine check dist/*`.
-- [ ] Upload to TestPyPI first, install from it in a clean virtualenv, run
-      `llama-roofline membw`.
-- [ ] Upload to PyPI. Confirm `pip install llama-roofline` then `llama-roofline --version`
-      works on a machine that has never seen the source.
-- [ ] Add the PyPI badge back to the README (it was removed for the initial push, because a
-      badge for a package that does not exist yet renders broken):
+**Not shipping to PyPI.** PyPI has mandated two-factor authentication on every account
+since 2024, and without it you cannot create an API token, so you cannot upload at all.
+That was not a tradeoff worth making for this project, so the install path is the
+repository:
+
+```
+pip install git+https://github.com/manunicholasjacob/llama-roofline
+```
+
+Every install command in the README, the blog and the announcement drafts already says
+this, so nothing gates the launch.
+
+The packaging is still correct and PyPI-ready if you change your mind later: `pyproject.toml`
+is complete, `python -m build` produces a wheel and sdist, and both pass `twine check`.
+To do it then:
+
+- [ ] Enable 2FA on PyPI (authenticator app), create an account-scoped API token.
+- [ ] Put the token in `~/.pypirc` under `[pypi]` with `username = __token__`.
+- [ ] `python -m build`, `twine check dist/*`, upload to TestPyPI first, then PyPI.
+- [ ] Add the badge back:
       `[![PyPI](https://img.shields.io/pypi/v/llama-roofline.svg)](https://pypi.org/project/llama-roofline/)`
-- [ ] Switch the README's two install commands from `pip install git+https://...` to
-      `pip install llama-roofline`, and delete the "A PyPI release is coming" line.
-- [ ] Only now are the Phase 4 drafts accurate: they all say `pip install llama-roofline`.
-      Do not post before this phase is done.
+- [ ] Switch the install commands in README, `docs/BLOG.md` and `docs/announce-reddit.md`
+      from the git URL to `pip install llama-roofline`.
+
+Consequence for Phase 5: there are no PyPI download numbers to track. GitHub clones and
+Zenodo downloads are the adoption evidence instead.
 
 ## Phase 4 - distribution
 
@@ -88,8 +102,8 @@ Screenshot and date-stamp each of these for the evidence vault
 
 - [ ] GitHub stars, forks, and unique clones (Insights > Traffic; this data only goes back
       14 days, so capture it on a schedule, not once).
-- [ ] PyPI download counts (pypistats.org).
-- [ ] Zenodo views and downloads.
+- [ ] Zenodo record views and downloads (`10.5281/zenodo.21842493`). With no PyPI, this
+      and GitHub traffic are the install-side evidence.
 - [ ] The Reddit and HN threads themselves, including notable comments.
 - [ ] Any third-party mention: a blog post, an issue that says "I ran this and", a
       citation, an inclusion in someone else's benchmark writeup.

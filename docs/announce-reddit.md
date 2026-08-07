@@ -20,7 +20,7 @@ sustainable memory read bandwidth, fits the roofline, and then tells you in plai
 what to change.
 
 ```
-pip install llama-roofline
+pip install git+https://github.com/manunicholasjacob/llama-roofline
 llama-roofline run --models ~/models/*.gguf
 ```
 

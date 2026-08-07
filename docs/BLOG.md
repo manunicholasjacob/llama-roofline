@@ -46,7 +46,7 @@ is a 63% loss from a setting that looks like it should be free.
 of the equation on your machine:
 
 ```bash
-pip install llama-roofline
+pip install git+https://github.com/manunicholasjacob/llama-roofline
 llama-roofline run --models ~/models/*.gguf
 ```
 
@@ -138,7 +138,7 @@ locally.
 ## Try it, and send me your numbers
 
 ```bash
-pip install llama-roofline
+pip install git+https://github.com/manunicholasjacob/llama-roofline
 llama-roofline run --models ~/models/*.gguf
 ```
 

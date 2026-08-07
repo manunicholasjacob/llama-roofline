@@ -35,8 +35,8 @@ classifiers = [
 # A default install should work end to end on first run: numpy measures the bandwidth
 # ceiling and matplotlib draws the figure. Neither is needed by the analysis core, which
 # is pure standard library, and the tool degrades cleanly if they are absent (see the
-# no-optional-deps job in CI) -- but a user typing `pip install llama-roofline` should not
-# have to discover that by having the headline feature fail.
+# no-optional-deps job in CI) -- but a user installing this should not have to
+# discover that by having the headline feature fail.
 dependencies = ["numpy>=1.20", "matplotlib>=3.4"]
 
 [project.optional-dependencies]

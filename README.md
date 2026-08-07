@@ -164,9 +164,6 @@ pip install git+https://github.com/manunicholasjacob/llama-roofline
 Python 3.9 or newer, on Linux, macOS or Windows. That pulls in `numpy` and `matplotlib` so
 the tool works end to end on first run.
 
-A PyPI release (`pip install llama-roofline`) is coming; until then install from the
-repository as above.
-
 The **analysis core is pure standard library**. `numpy` is used only to measure the
 bandwidth ceiling (skip it with `--peak-bw`) and `matplotlib` only to draw the figure
 (skip it with `--no-plot`), and CI has a job that proves the tool still runs with neither
