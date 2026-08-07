@@ -4,6 +4,27 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- `--ctx` passed `-c` to llama-bench, which current builds reject outright, so any run
+  using the flag failed and measured nothing. llama-bench has no context-size option; it
+  sizes the context from `-p`, `-n` and `-d`. Replaced by `--depth`, which maps to `-d`
+  (generate with N tokens already in the KV cache). Regression tests assert the built
+  argv never contains `-c`, `--ctx` or `--n-ctx`.
+- A run in which every model failed to load exited 0, so a script checking the exit code
+  would have read it as a success. It now returns 1, while still writing the output.
+- llama.cpp's backend-loading banners buried the actual error in a multi-line stderr dump
+  per failure. `summarize_stderr()` drops the banners and collapses the real error to one
+  line.
+
+### Documented
+- Measured where the weights-only roofline stops holding, instead of asserting it. With
+  the KV cache pre-filled, decode falls to 39% (0.5B) and 45% (1.5B) of its empty-cache
+  throughput at 8k context, and the 0.5B model reaches 13% at 32k. The falloff is far
+  steeper than the extra KV bytes alone predict, so it is attention work over the cache,
+  not just more streaming. See METHOD.md section 7 and the README's Long context section.
+
 ## [0.1.0] - 2026-08-07
 
 First release.

@@ -169,8 +169,8 @@ repository as above.
 The **analysis core is pure standard library**. `numpy` is used only to measure the
 bandwidth ceiling (skip it with `--peak-bw`) and `matplotlib` only to draw the figure
 (skip it with `--no-plot`), and CI has a job that proves the tool still runs with neither
-installed. So if you are on a constrained box, `pip install --no-deps llama-roofline` gets
-you a working tool as long as you supply the ceiling yourself.
+installed. So if you are on a constrained box, adding `--no-deps` to the command above gets
+you a working tool as long as you supply the ceiling yourself with `--peak-bw`.
 
 Do not have llama.cpp yet?
 
@@ -200,6 +200,31 @@ The short version: three read-only numpy kernels over a thread pool establish th
 as a **measured lower bound**; `llama-bench` supplies throughput; `tok/s = BW * (1/bytes)`
 is fitted through the origin by least squares; R² against the mean of y tells you whether
 the model actually holds on your machine.
+
+## Long context
+
+The fitted roofline assumes bytes-per-token is the weights alone, which is true with an
+almost-empty KV cache and progressively less true as context grows. That is not a
+hand-wave, it is measured. Decode on this laptop, with the cache pre-filled to each depth:
+
+Decode throughput as a percentage of the same model with an empty cache:
+
+| model | 0 ctx | 512 ctx | 2,048 ctx | 8,192 ctx |
+|---|---:|---:|---:|---:|
+| Qwen2.5-0.5B Q4_K_M | **100%** | **96%** | **74%** | **39%** |
+| Qwen2.5-1.5B Q4_K_M | **100%** | **97%** | **80%** | **45%** |
+
+The falloff is far steeper than the extra KV bytes alone would cause, so it is not just
+more streaming; it is attention work over the cache, which grows with context length.
+
+So: treat the headline fit and the utilisation percentages as **short-context** numbers,
+and if you run long contexts, measure at your own context length:
+
+```bash
+llama-roofline run --models ~/models/*.gguf --depth 8192
+```
+
+Full analysis in [docs/METHOD.md](docs/METHOD.md#7-long-context-where-this-model-stops-working).
 
 ## Limitations
 
