@@ -81,3 +81,25 @@ def test_find_llama_bench_env(tmp_path, monkeypatch):
     exe.write_text("stub")
     monkeypatch.setenv("LLAMA_BENCH", str(exe))
     assert bench.find_llama_bench(None) == os.path.abspath(str(exe))
+
+
+REAL_STDERR = r"""load_backend: loaded RPC backend from C:\llmpc\bin\ggml-rpc.dll
+load_backend: loaded CPU backend from C:\llmpc\bin\ggml-cpu-alderlake.dll
+llama_model_load: error loading model: invalid split file
+llama_bench: error: failed to load model 'broken.gguf'
+"""
+
+
+def test_summarize_stderr_discards_backend_banners():
+    msg = bench.summarize_stderr(REAL_STDERR)
+    assert "load_backend" not in msg
+    assert "ggml-rpc.dll" not in msg
+    assert "failed to load model" in msg
+    assert "\n" not in msg
+
+
+def test_summarize_stderr_falls_back_when_nothing_matches():
+    assert bench.summarize_stderr("") == "no error message on stderr"
+    assert bench.summarize_stderr("load_backend: loaded CPU backend") != ""
+    # No line contains "error"/"failed": keep the last real lines rather than nothing.
+    assert "killed" in bench.summarize_stderr("load_backend: x\nkilled")

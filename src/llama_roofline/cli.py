@@ -245,6 +245,13 @@ def cmd_run(args: argparse.Namespace) -> int:
     print("  wrote:")
     for w in written:
         print(f"    {w}")
+
+    # Files were still written (the failures are worth keeping), but a run where nothing
+    # could be measured is not a success, and a script should be able to tell.
+    if analysis.get("n_models_ok", 0) == 0:
+        _eprint("\nerror: no model produced a decode measurement. "
+                "Check that the GGUF files load with your llama-bench build.")
+        return 1
     return 0
 
 

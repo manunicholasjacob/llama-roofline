@@ -150,3 +150,26 @@ def test_reanalyze_without_models_is_an_error(tmp_path, capsys):
     path.write_text(json.dumps({"schema_version": 1, "analysis": {}}))
     assert cli.main(["report", str(path), "--reanalyze"]) == 2
     assert "--reanalyze needs per-model runs" in capsys.readouterr().err
+
+
+def test_run_exits_nonzero_when_every_model_fails(tmp_path, monkeypatch, capsys):
+    """Files are still written, but a run that measured nothing is not a success."""
+    from llama_roofline import bench as bench_mod
+
+    model = tmp_path / "broken.gguf"
+    model.write_bytes(b"not a gguf")
+    fake_bin = tmp_path / "llama-bench"
+    fake_bin.write_text("stub")
+
+    def always_fails(*a, **k):
+        raise bench_mod.BenchError("llama-bench exited 1: failed to load model")
+
+    monkeypatch.setattr(bench_mod, "bench_model", always_fails)
+    monkeypatch.setattr(bench_mod, "bench_version", lambda b: {"path": b})
+
+    rc = cli.main(["run", "--models", str(model), "--llama-bench", str(fake_bin),
+                   "--threads", "1", "--peak-bw", "40", "--no-plot",
+                   "--out", str(tmp_path / "out")])
+    assert rc == 1
+    assert "no model produced a decode measurement" in capsys.readouterr().err
+    assert (tmp_path / "out" / "roofline.json").exists()   # output is still kept

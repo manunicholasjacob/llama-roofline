@@ -76,6 +76,23 @@ def find_llama_bench(explicit: Optional[str] = None) -> str:
     )
 
 
+# Backend-loading chatter that llama.cpp prints on every start. It buries the real error.
+_NOISE_PREFIXES = ("load_backend:", "load_tensors:", "ggml_", "build:", "main:",
+                   "register_backend", "register_device")
+
+
+def summarize_stderr(stderr: str, limit: int = 2) -> str:
+    """Pull the actual failure out of llama-bench's stderr, discarding startup banners."""
+    lines = [ln.strip() for ln in stderr.strip().splitlines() if ln.strip()]
+    signal = [ln for ln in lines
+              if not ln.startswith(_NOISE_PREFIXES) and "loaded " not in ln]
+    chosen = [ln for ln in signal if "error" in ln.lower() or "failed" in ln.lower()]
+    if not chosen:
+        chosen = signal or lines
+    out = " | ".join(chosen[-limit:])
+    return out if out else "no error message on stderr"
+
+
 def parse_bench_json(raw: str) -> Dict[str, Any]:
     """Extract prefill/decode throughput and run metadata from llama-bench JSON output.
 
@@ -158,10 +175,9 @@ def bench_model(binary: str, model_path: str, threads: int,
         raise BenchError(f"could not execute {binary}: {exc}") from exc
 
     if proc.returncode != 0:
-        tail = proc.stderr.decode("utf-8", errors="replace").strip().splitlines()[-6:]
         raise BenchError(
-            f"llama-bench exited {proc.returncode} on {os.path.basename(model_path)}:\n  "
-            + "\n  ".join(tail)
+            f"llama-bench exited {proc.returncode}: "
+            + summarize_stderr(proc.stderr.decode("utf-8", errors="replace"))
         )
 
     result = parse_bench_json(proc.stdout.decode("utf-8", errors="replace"))
