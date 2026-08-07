@@ -2,7 +2,7 @@
   "title": "llama-roofline: a portable memory-bandwidth roofline for llama.cpp",
   "description": "<p>A command-line tool that answers one question about a local LLM setup: is token generation limited by memory bandwidth? It measures the machine's sustainable memory-read bandwidth with a portable microbenchmark, benchmarks the user's own GGUF models through <code>llama-bench</code> across a thread sweep, fits the decode roofline <code>tok/s = BW_eff / model_bytes</code>, and prints a plain-English report card with the bandwidth utilisation, the size/quantization frontier, and the thread count beyond which decode stops improving.</p><p>Outputs a roofline figure, a Markdown report, and machine-readable JSON. Pure standard library at its core; numpy and matplotlib are optional extras.</p>",
   "upload_type": "software",
-  "license": "MIT",
+  "license": "mit",
   "access_right": "open",
   "creators": [
     {
@@ -24,15 +24,13 @@
   "related_identifiers": [
     {
       "identifier": "https://github.com/ggml-org/llama.cpp",
-      "relation": "isBasedOn",
-      "resource_type": "software",
-      "scheme": "url"
+      "relation": "requires",
+      "resource_type": "software"
     },
     {
       "identifier": "https://github.com/manunicholasjacob/edge-llm-memory-wall",
       "relation": "isSupplementTo",
-      "resource_type": "software",
-      "scheme": "url"
+      "resource_type": "software"
     }
   ]
 }
