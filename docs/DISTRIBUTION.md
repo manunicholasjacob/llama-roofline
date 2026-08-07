@@ -40,7 +40,9 @@ automated, and every public post goes out under his own name and review.
 - [x] Add the DOI badge to the README and the DOIs to `CITATION.cff`.
       Concept DOI `10.5281/zenodo.21842493` (always latest);
       v0.1.0 DOI `10.5281/zenodo.21842494`.
-- [ ] Add the software DOI to ORCID (0009-0007-6589-6572).
+- [x] Add the software DOI to ORCID (0009-0007-6589-6572). Added via Works > Add >
+      "Add work with a DOI", which pulls the metadata from DataCite rather than
+      hand-typing it. Registered as type Software, visibility Everyone.
 - [ ] Optional: submit the record to a relevant Zenodo community.
 
 ## Phase 3 - PyPI  (DECIDED AGAINST, 2026-08-07)
