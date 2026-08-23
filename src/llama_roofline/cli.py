@@ -705,6 +705,9 @@ def cmd_advise(args: argparse.Namespace) -> int:
                   f"scales {scales}, threads {threads}, {len(rows)} rows")
         return 0
 
+    if args.plan:
+        return _advise_plan(args.plan)
+
     if args.measure:
         return _advise_by_measuring(args)
 
@@ -739,6 +742,26 @@ def cmd_advise(args: argparse.Namespace) -> int:
         with open(args.json, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2, default=str)
         print(f"  wrote {args.json}")
+    return 0
+
+
+def _advise_plan(path: str) -> int:
+    """Print the commands that turn one unquantized model into a comparable set.
+
+    The step people get wrong is the source. Several quantizations of one model is the
+    comparison that isolates the format, and building them from an already-quantized
+    file silently measures the intermediate instead.
+    """
+    if not os.path.isfile(path):
+        _eprint(f"error: not a file: {path}")
+        return 2
+    desc = gguf.describe(path)
+    quant = desc.get("quant")
+    if not desc.get("metadata_ok") and not quant:
+        _eprint(f"error: could not read {path} as a GGUF file. "
+                f"Point --plan at the F16 or BF16 GGUF of the model you want to compare.")
+        return 2
+    print("\n".join(advisor.quantize_plan(path, quant)))
     return 0
 
 
@@ -888,6 +911,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="advise for this thread count (default: the fastest measured)")
     a.add_argument("--scale", type=float, default=None, metavar="B",
                    help="model size in billions of parameters (default: 0.5)")
+    a.add_argument("--plan", metavar="GGUF",
+                   help="given one unquantized model, print the llama-quantize commands "
+                        "that build a set worth comparing, and what to do with it")
     a.add_argument("--measure", action="store_true",
                    help="ignore the shipped matrix and benchmark your own files")
     a.add_argument("--models", "-m", nargs="+", metavar="GGUF",

@@ -141,6 +141,17 @@ llama-roofline advise --measure --models ~/models/qwen0.5b-*.gguf
 
 That benchmarks the files you already have and prints the same table from your own numbers.
 
+Most people have one file per model rather than several formats of one model, which
+compares sizes instead of formats. If that is you:
+
+```bash
+llama-roofline advise --plan ~/models/qwen0.5b-f16.gguf
+```
+
+prints the `llama-quantize` commands that build a comparable set, and refuses if you point
+it at a file that is already quantized, because requantizing from an intermediate produced
+files up to 38% slower on the A76 under the same label.
+
 ## What is actually in that GGUF file?
 
 A format label names a recipe, not a type, and two files with the same name can hold
@@ -222,6 +233,7 @@ llama-roofline diagnose ~/models --quick        # fewer settings, one repetition
 llama-roofline advise
 llama-roofline advise --core cortex-a76 --threads 4
 llama-roofline advise --measure --models ~/models/qwen-*.gguf   # from your own files
+llama-roofline advise --plan ~/models/qwen-f16.gguf             # build a set worth comparing
 
 # what a GGUF file actually contains
 llama-roofline inspect ~/models/model.gguf
@@ -291,12 +303,26 @@ proves all of it still runs with both absent. So on a constrained box,
 `pip install llama-roofline --no-deps` gets you a working tool as long as you supply the
 ceiling yourself with `--peak-bw`.
 
-Do not have llama.cpp yet?
+Do not have llama.cpp yet? You almost certainly do not need to build it. `llama-bench`
+ships with every packaged copy:
+
+```bash
+brew install llama.cpp                          # macOS, Linux
+winget install llama.cpp                        # Windows
+conda install -c conda-forge llama.cpp          # anywhere
+```
+
+Prebuilt archives for macOS, Linux, Windows and Android are attached to every build at
+[github.com/ggml-org/llama.cpp/releases](https://github.com/ggml-org/llama.cpp/releases).
+From source, if you would rather:
 
 ```bash
 git clone https://github.com/ggml-org/llama.cpp && cd llama.cpp
 cmake -B build && cmake --build build --target llama-bench -j
 ```
+
+Ollama and LM Studio both bundle llama.cpp and neither exposes `llama-bench`, so having
+one of them installed does not count.
 
 ## Results gallery
 

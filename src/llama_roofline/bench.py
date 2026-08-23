@@ -69,10 +69,18 @@ def find_llama_bench(explicit: Optional[str] = None) -> str:
                     return os.path.abspath(hit)
 
     raise BenchNotFound(
-        "could not find `llama-bench`.\n"
-        "  * build it:  cmake -B build && cmake --build build --target llama-bench -j\n"
-        "  * then point at it: llama-roofline run --llama-bench /path/to/llama-bench ...\n"
-        "  * or set the LLAMA_BENCH environment variable."
+        "could not find `llama-bench`. It ships with llama.cpp, and you probably do not\n"
+        "have to build it:\n"
+        "  * macOS or Linux:  brew install llama.cpp\n"
+        "  * Windows:         winget install llama.cpp\n"
+        "  * any platform:    conda install -c conda-forge llama.cpp\n"
+        "  * prebuilt archives: https://github.com/ggml-org/llama.cpp/releases\n"
+        "  * from source:     cmake -B build && cmake --build build --target llama-bench -j\n"
+        "\n"
+        "Already have it somewhere this did not look? Pass --llama-bench /path/to/llama-bench,\n"
+        "or set the LLAMA_BENCH environment variable.\n"
+        "Ollama and LM Studio bundle llama.cpp without exposing llama-bench, so having\n"
+        "either of them installed is not enough."
     )
 
 

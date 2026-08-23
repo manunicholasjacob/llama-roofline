@@ -212,3 +212,72 @@ def test_measured_spread_needs_matched_bytes():
          "streamed_MiB": 660, "streamed_GBs": 34.6},
     ]
     assert advisor.local_matched_spread(measured) is None
+
+
+# ------------------------------------------------------------------ the comparison plan
+
+def test_plan_refuses_an_already_quantized_source():
+    # Building the comparison set from a quantized file needs --allow-requantize and
+    # produces artifacts that share a label with a proper set while holding different
+    # types. That is the exact confound the shipped study spent an arm measuring.
+    text = "\n".join(advisor.quantize_plan("models/thing-Q4_K_M.gguf", "Q4_K_M"))
+    assert "WRONG STARTING POINT" in text
+    assert "--allow-requantize" in text
+    assert "38%" in text
+    assert "llama-quantize models" not in text  # no commands offered
+
+
+def test_plan_from_an_unquantized_source_gives_runnable_commands():
+    text = "\n".join(advisor.quantize_plan("/models/qwen-fp16.gguf", "F16"))
+    for fmt in advisor.PLAN_FORMATS:
+        assert f".gguf {fmt}" in text, fmt
+    assert "advise --measure" in text
+    assert advisor.GALLERY_URL in text
+    text.encode("ascii")
+
+
+def test_plan_strips_the_precision_suffix_from_the_output_names():
+    text = "\n".join(advisor.quantize_plan("/m/qwen0.5b-fp16.gguf", "F16"))
+    assert "qwen0.5b-Q4_0.gguf" in text
+    assert "qwen0.5b-fp16-Q4_0.gguf" not in text
+
+
+def test_plan_keeps_the_separator_style_it_was_given():
+    posix = "\n".join(advisor.quantize_plan("/home/me/models/m-f16.gguf", "F16"))
+    assert "/home/me/models/m-Q4_0.gguf" in posix
+    assert "\\" not in posix
+
+
+def test_a_size_only_comparison_says_so_instead_of_implying_a_format_result():
+    measured = [
+        {"format": "Q4_0", "name": "small", "threads": 4, "tok_s": 100.0,
+         "streamed_MiB": 330, "streamed_GBs": 34.6},
+        {"format": "Q4_0", "name": "large", "threads": 4, "tok_s": 50.0,
+         "streamed_MiB": 660, "streamed_GBs": 34.6},
+    ]
+    text = advisor.render_measured({"cpu": "test", "logical_cores": 8}, measured, [4])
+    assert "SIZE COMPARISON, NOT A FORMAT COMPARISON" in text
+    assert "advise --plan" in text
+
+
+def test_a_matched_byte_comparison_does_not_get_the_size_warning():
+    measured = [
+        {"format": "Q4_0", "name": "a", "threads": 4, "tok_s": 100.0,
+         "streamed_MiB": 330, "streamed_GBs": 34.6},
+        {"format": "IQ4_XS", "name": "b", "threads": 4, "tok_s": 90.0,
+         "streamed_MiB": 331, "streamed_GBs": 31.2},
+    ]
+    text = advisor.render_measured({"cpu": "test", "logical_cores": 8}, measured, [4])
+    assert "SIZE COMPARISON" not in text
+    assert "Same bytes:" in text
+
+
+def test_the_measured_report_says_where_to_send_the_result():
+    measured = [
+        {"format": "Q4_0", "name": "a", "threads": 4, "tok_s": 100.0,
+         "streamed_MiB": 330, "streamed_GBs": 34.6},
+        {"format": "IQ4_XS", "name": "b", "threads": 4, "tok_s": 90.0,
+         "streamed_MiB": 331, "streamed_GBs": 31.2},
+    ]
+    text = advisor.render_measured({"cpu": "test", "logical_cores": 8}, measured, [4])
+    assert advisor.GALLERY_URL in text

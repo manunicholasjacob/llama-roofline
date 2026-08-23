@@ -512,6 +512,17 @@ def _unknown_silicon(detection: Dict[str, Any], matrix) -> List[str]:
         "from your own numbers. Several quantizations of one model is the useful case. "
         "Different models tell you about size, not about format."))
     L.append("")
+    L.extend(_para(
+        "If you do not have several quantizations of one model, this prints the commands "
+        "that build a comparable set from an unquantized one, and explains why the source "
+        "has to be unquantized:"))
+    L.append("")
+    L.append("    llama-roofline advise --plan ~/models/<model>-f16.gguf")
+    L.append("")
+    L.extend(_para(
+        "Whatever it says about this machine is a result nobody has, because this core "
+        "has not been measured. " + GALLERY_URL))
+    L.append("")
     L.append("  WHAT IS STILL WORTH KNOWING")
     L.append(THIN)
     L.extend(_bullets(cross_core_facts(matrix)))
@@ -736,9 +747,23 @@ def render_measured(system: Dict[str, Any], measured: List[Dict[str, Any]],
         L.extend(_para("The fastest file changes with thread count here (" +
                        ", ".join(bits) + "), so pick -t and the format together."))
         L.append("")
+    if not any(local_matched_spread(rows) for rows in groups.values()):
+        L.append("  THIS IS A SIZE COMPARISON, NOT A FORMAT COMPARISON")
+        L.append(THIN)
+        L.extend(_para(NO_MATCHED_BYTES))
+        L.append("")
     L.append("  READ THIS BEFORE QUOTING IT")
     L.append(THIN)
     L.extend(_bullets(MEASURED_CAVEATS))
+    L.append("")
+    L.append("  WHERE TO SEND IT")
+    L.append(THIN)
+    L.extend(_para(
+        "Three CPU cores have been measured for the shipped rankings. If this machine is "
+        "not one of them, or if it is and your ordering disagrees, that is worth more "
+        "than another confirmation. Re-run with --markdown result.md and open an issue:"))
+    L.append("")
+    L.append(f"    {GALLERY_URL}")
     L.append("")
     L.append(RULE)
     return "\n".join(L)
@@ -785,3 +810,111 @@ def render_measured_markdown(system: Dict[str, Any], measured: List[Dict[str, An
              "(https://github.com/manunicholasjacob/llama-roofline) with "
              "`llama-roofline advise --measure`.")
     return "\n".join(L)
+
+
+# ---------------------------------------------------------------- the comparison plan
+
+GALLERY_URL = ("https://github.com/manunicholasjacob/llama-roofline/issues/new"
+               "?template=results-gallery.md")
+
+# The set the shipped study used. Q4_0, IQ4_NL, IQ4_XS and Q3_K_M land within 3% of the
+# same streamed bytes at 0.5B, which is what makes a format comparison a format
+# comparison rather than a size comparison. Q4_K_M is in because it is the community
+# default and the one most likely to surprise; Q6_K and Q8_0 anchor the top of the range.
+PLAN_FORMATS = ["Q4_0", "IQ4_NL", "IQ4_XS", "Q3_K_M", "Q4_K_M", "Q6_K", "Q8_0"]
+
+UNQUANTIZED = ("F32", "F16", "BF16")
+
+
+def quantize_plan(source_path: str, quant_label: Optional[str],
+                  formats: Optional[List[str]] = None) -> List[str]:
+    """Commands that build a comparable format set from one unquantized model.
+
+    The insistence on an unquantized source is the whole point. Requantizing from a
+    Q8_0 intermediate is a single extra flag and it produces files that carry the same
+    format label, the same nominal bit width, and a different per-tensor type map. On
+    the Cortex-A76 those files decoded up to 38% slower than their FP16-sourced
+    counterparts. A comparison built on them measures the intermediate, not the format.
+    """
+    import os as _os
+
+    formats = formats or PLAN_FORMATS
+    stem = _os.path.splitext(_os.path.basename(source_path))[0]
+    for suffix in ("-fp16", "-f16", ".fp16", ".f16", "-bf16", ".bf16",
+                   "-fp32", "-f32", ".fp32", ".f32"):
+        if stem.lower().endswith(suffix):
+            stem = stem[: -len(suffix)]
+            break
+    directory = _os.path.dirname(_os.path.abspath(source_path))
+
+    def out_path(name):
+        # Match the separator the caller typed, so the commands can be pasted back.
+        joined = _os.path.join(directory, name)
+        return joined.replace("\\", "/") if "/" in source_path else joined
+
+    L: List[str] = [RULE, "  a format comparison you can actually run", RULE]
+    L.extend(_para(f"Source: {_os.path.basename(source_path)}"
+                   + (f", which reports itself as {quant_label}" if quant_label else "")))
+    L.append("")
+
+    if quant_label and quant_label.upper() not in UNQUANTIZED:
+        L.append("  THIS FILE IS THE WRONG STARTING POINT")
+        L.append(THIN)
+        L.extend(_para(
+            f"It is already quantized to {quant_label}. Building the comparison set from "
+            f"it needs llama-quantize's --allow-requantize flag, and the files that come "
+            f"out carry the same format labels as a proper set while holding different "
+            f"per-tensor types. On the Cortex-A76 those requantized files decoded up to "
+            f"38% slower than their FP16-sourced counterparts under an identical name. "
+            f"A comparison built on them measures what the file was made from rather "
+            f"than what the format costs."))
+        L.append("")
+        L.extend(_para(
+            "Download the F16 or BF16 GGUF of the same model instead, or convert it from "
+            "the original weights with llama.cpp's convert_hf_to_gguf.py, and run this "
+            "again pointing at that file. It is usually the largest file in the same "
+            "repository and it is the only one every other format can be derived from "
+            "honestly."))
+        L.append("")
+        L.append(RULE)
+        return L
+
+    L.append("  1. BUILD THE SET")
+    L.append(THIN)
+    L.extend(_para(
+        "Each command takes about a minute for a small model. llama-quantize comes from "
+        "the same llama.cpp build as llama-bench.", width=66))
+    L.append("")
+    for fmt in formats:
+        out = out_path(f"{stem}-{fmt}.gguf")
+        L.append(f"    llama-quantize {source_path} {out} {fmt}")
+    L.append("")
+    L.append("  2. MEASURE THEM")
+    L.append(THIN)
+    L.append("    llama-roofline advise --measure --models "
+             + out_path(stem) + "-*.gguf")
+    L.append("")
+    L.extend(_para(
+        "That benchmarks each file across a thread sweep and prints the ranking for this "
+        "machine, with a line isolating the formats that stream the same bytes so the "
+        "comparison is about the format rather than about the size."))
+    L.append("")
+    L.append("  3. SEND IT")
+    L.append(THIN)
+    L.extend(_para(
+        "The rankings that ship with this tool cover three CPU cores. If yours is not one "
+        "of them, or if it is and your ordering disagrees, that is the result worth "
+        "having. Add --markdown result.md to step 2 and open an issue with it:"))
+    L.append("")
+    L.append(f"    {GALLERY_URL}")
+    L.append("")
+    L.append(RULE)
+    return L
+
+
+NO_MATCHED_BYTES = (
+    "None of the files measured stream within 3% of the same bytes per token, so the "
+    "table above is mostly telling you about size, which you already knew. To find out "
+    "what the format itself costs, build several formats from one unquantized model and "
+    "measure those: llama-roofline advise --plan <model-f16.gguf> prints the commands."
+)
