@@ -77,7 +77,7 @@ streamed sizes a published study reported independently, it returns all eight to
 
 ## Everything else
 
-148 tests, up from 77. Reports are asserted to be plain ASCII. The no-dependency CI job now
+149 tests, up from 77. Reports are asserted to be plain ASCII. The no-dependency CI job now
 also proves the advisor and the GGUF reader run without numpy.
 
 Full detail in [CHANGELOG.md](../CHANGELOG.md).

@@ -66,7 +66,7 @@ rather than the one the roofline literature asks.
   keep them honest.
 
 ### Tests
-- 148 tests, up from 77. The new ones cover the tensor-table parser against synthetic GGUF
+- 149 tests, up from 77. The new ones cover the tensor-table parser against synthetic GGUF
   files, silicon detection across nine CPU strings including the two that must NOT match
   (Core Ultra and pre-hybrid Intel), the advisor's logic, and the shipped matrix against
   the published table it came from. Reports are asserted to be plain ASCII.

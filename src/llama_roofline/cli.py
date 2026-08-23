@@ -581,8 +581,15 @@ def cmd_diagnose(args: argparse.Namespace) -> int:
 
 def cmd_inspect(args: argparse.Namespace) -> int:
     """Show what is actually inside a GGUF file, since the filename does not say."""
+    paths = expand_model_args(args.models)
+    if not paths:
+        # A directory or glob that matched nothing would otherwise exit 0 with no output,
+        # which reads as "there is nothing interesting in there" rather than as a typo.
+        _eprint("error: nothing to inspect. "
+                + ", ".join(args.models) + " matched no .gguf files.")
+        return 2
     rc = 0
-    for path in expand_model_args(args.models):
+    for path in paths:
         if not os.path.isfile(path):
             _eprint(f"error: not a file: {path}")
             rc = 2

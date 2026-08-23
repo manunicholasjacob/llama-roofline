@@ -202,3 +202,8 @@ def test_inspect_reports_a_broken_file_without_crashing(tmp_path, capsys):
     p.write_bytes(b"not a gguf at all")
     assert cli.main(["inspect", str(p)]) == 2
     assert "could not read the tensor table" in capsys.readouterr().err
+
+
+def test_inspect_on_a_directory_with_no_models_is_an_error_not_silence(tmp_path, capsys):
+    assert cli.main(["inspect", str(tmp_path)]) == 2
+    assert "nothing to inspect" in capsys.readouterr().err
