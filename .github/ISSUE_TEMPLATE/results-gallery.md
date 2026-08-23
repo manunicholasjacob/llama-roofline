@@ -1,6 +1,6 @@
 ---
 name: Results gallery
-about: Share the report card from your machine
+about: Share what this said about your machine
 title: "[results] <CPU / device name>"
 labels: results
 ---
@@ -12,9 +12,14 @@ labels: results
 ## Report
 
 <!--
-Paste the contents of report.md from your output directory, or the terminal report card.
+Paste diagnosis.md from your output directory, or the terminal report:
 
-  llama-roofline run --models ~/models/*.gguf
+  llama-roofline diagnose
+
+If you also ran the format comparison, paste that too. It is the more useful of the two,
+because the rankings are core-specific and only three cores have been measured:
+
+  llama-roofline advise --measure --models ~/models/<several quants of one model>
 -->
 
 ```
@@ -25,6 +30,9 @@ paste here
 
 <!--
 The interesting part. Did the verdict match your experience? Did the recommended thread
-count actually turn out to be fastest in real use? Is there something about your setup
-the tool did not account for? Negative results are welcome and useful.
+count actually turn out to be fastest in real use? If you ran the format comparison, does
+your ordering match anything in `llama-roofline advise`, or does it contradict it?
+
+A result that contradicts the model is worth more than one that confirms it. Negative
+results are welcome.
 -->
