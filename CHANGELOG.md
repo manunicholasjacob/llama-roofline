@@ -8,6 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - 2026-08-23
 
+### Added, second pass
+- `llama-roofline advise --plan <model-f16.gguf>` prints the `llama-quantize` commands
+  that build a set worth comparing, and refuses when pointed at a file that is already
+  quantized. Most people have one file per model rather than several formats of one, which
+  makes `--measure` a size comparison; it now says so instead of presenting one as the
+  other. Requantizing from an intermediate produced files up to 38% slower on the A76 under
+  an identical label, which is why the source has to be unquantized.
+- `tools/verify_wheel.py` installs the built wheel and sdist into throwaway environments,
+  runs the commands that need packaged data from a directory that is not the checkout, and
+  asserts the matrix was loaded from site-packages. A new CI job runs it on Linux and
+  Windows. A checkout has that CSV on disk whether or not the build carries it, so the
+  whole suite can pass while every installed copy fails.
+- Both the measured report and the unmeasured-silicon path now end with where to send the
+  result.
+
+### Changed, second pass
+- The `llama-bench` not-found error leads with `brew`, `winget` and `conda-forge`, which
+  llama.cpp documents, and with the prebuilt release archives, rather than with a cmake
+  line. It also says that Ollama and LM Studio bundle llama.cpp without exposing
+  `llama-bench`, which is the wrong assumption to leave someone holding.
+- `inspect` on a directory or glob that matches nothing is an error rather than silence.
+
+
 Three new commands, and the tool now answers the question people actually arrive with
 rather than the one the roofline literature asks.
 
