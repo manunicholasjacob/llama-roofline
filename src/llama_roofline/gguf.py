@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import re
 import struct
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 MAGIC = b"GGUF"
 
@@ -92,21 +92,125 @@ def _read_value(f, vtype: int, _depth: int = 0) -> Any:
 def read_metadata(path: str, max_kv: int = 4096) -> Dict[str, Any]:
     """Return the raw GGUF key/value metadata block. Raises GGUFError on bad input."""
     with open(path, "rb") as f:
-        if _read(f, 4) != MAGIC:
-            raise GGUFError("not a GGUF file (bad magic)")
-        (version,) = struct.unpack("<I", _read(f, 4))
-        if version not in (2, 3):
-            raise GGUFError(f"unsupported GGUF version {version}")
-        (n_tensors,) = struct.unpack("<Q", _read(f, 8))
-        (n_kv,) = struct.unpack("<Q", _read(f, 8))
-        if n_kv > max_kv:
-            raise GGUFError(f"implausible metadata count {n_kv}")
-        kv: Dict[str, Any] = {"_gguf_version": version, "_n_tensors": n_tensors}
-        for _ in range(n_kv):
-            key = _read_string(f)
-            (vtype,) = struct.unpack("<I", _read(f, 4))
-            kv[key] = _read_value(f, vtype)
+        kv, _ = _read_header(f, max_kv)
         return kv
+
+
+def _read_header(f, max_kv: int = 4096):
+    """Read magic, counts and the key/value block. Leaves f at the tensor table."""
+    if _read(f, 4) != MAGIC:
+        raise GGUFError("not a GGUF file (bad magic)")
+    (version,) = struct.unpack("<I", _read(f, 4))
+    if version not in (2, 3):
+        raise GGUFError(f"unsupported GGUF version {version}")
+    (n_tensors,) = struct.unpack("<Q", _read(f, 8))
+    (n_kv,) = struct.unpack("<Q", _read(f, 8))
+    if n_kv > max_kv:
+        raise GGUFError(f"implausible metadata count {n_kv}")
+    kv: Dict[str, Any] = {"_gguf_version": version, "_n_tensors": n_tensors}
+    for _ in range(n_kv):
+        key = _read_string(f)
+        (vtype,) = struct.unpack("<I", _read(f, 4))
+        kv[key] = _read_value(f, vtype)
+    return kv, n_tensors
+
+
+# --------------------------------------------------------------------------- tensors
+
+# ggml type id -> (name, elements per block, bytes per block). A quantized tensor stores
+# whole blocks, so its size is elements/block_size * type_size and not a bit count.
+# Values follow the block structs in ggml-common.h; a type absent here makes the tensor
+# unsized rather than mis-sized.
+GGML_TYPES = {
+    0: ("F32", 1, 4), 1: ("F16", 1, 2),
+    2: ("Q4_0", 32, 18), 3: ("Q4_1", 32, 20),
+    6: ("Q5_0", 32, 22), 7: ("Q5_1", 32, 24),
+    8: ("Q8_0", 32, 34), 9: ("Q8_1", 32, 36),
+    10: ("Q2_K", 256, 84), 11: ("Q3_K", 256, 110), 12: ("Q4_K", 256, 144),
+    13: ("Q5_K", 256, 176), 14: ("Q6_K", 256, 210), 15: ("Q8_K", 256, 292),
+    16: ("IQ2_XXS", 256, 66), 17: ("IQ2_XS", 256, 74), 18: ("IQ3_XXS", 256, 98),
+    19: ("IQ1_S", 256, 50), 20: ("IQ4_NL", 32, 18), 21: ("IQ3_S", 256, 110),
+    22: ("IQ2_S", 256, 82), 23: ("IQ4_XS", 256, 136),
+    24: ("I8", 1, 1), 25: ("I16", 1, 2), 26: ("I32", 1, 4), 27: ("I64", 1, 8),
+    28: ("F64", 1, 8), 29: ("IQ1_M", 256, 56), 30: ("BF16", 1, 2),
+    34: ("TQ1_0", 256, 54), 35: ("TQ2_0", 256, 66), 39: ("MXFP4", 32, 17),
+}
+
+
+def read_tensors(path: str, max_tensors: int = 100000) -> List[Dict[str, Any]]:
+    """The per-tensor type map: name, ggml type, shape and size in bytes.
+
+    This is the part of a GGUF file that actually determines what it costs to run, and
+    the part its filename does not describe. Two files carrying the same format label
+    can hold different types per tensor depending on what they were quantized from.
+    """
+    with open(path, "rb") as f:
+        _, n_tensors = _read_header(f)
+        if n_tensors > max_tensors:
+            raise GGUFError(f"implausible tensor count {n_tensors}")
+        out: List[Dict[str, Any]] = []
+        for _ in range(n_tensors):
+            name = _read_string(f)
+            (n_dims,) = struct.unpack("<I", _read(f, 4))
+            if n_dims > 8:
+                raise GGUFError(f"implausible tensor rank {n_dims}")
+            dims = list(struct.unpack(f"<{n_dims}Q", _read(f, 8 * n_dims)))
+            (tid,) = struct.unpack("<I", _read(f, 4))
+            (offset,) = struct.unpack("<Q", _read(f, 8))
+            elements = 1
+            for d in dims:
+                elements *= d
+            info = GGML_TYPES.get(tid)
+            nbytes = None
+            if info and elements % info[1] == 0:
+                nbytes = elements // info[1] * info[2]
+            out.append({
+                "name": name, "type_id": tid,
+                "type": info[0] if info else f"type{tid}",
+                "dims": dims, "elements": elements,
+                "bytes": nbytes, "offset": offset,
+            })
+        return out
+
+
+# Tensors read once per token during generation: every repeating block, the final norm,
+# and the output head. The token embedding is a row lookup, so only one row of it is
+# touched per token, which is why file size overstates decode traffic.
+_EMBED_NAMES = ("token_embd.weight",)
+
+
+def streamed_bytes(tensors: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Bytes read per generated token, and how that splits.
+
+    Returns None if any tensor could not be sized, because a partial total would be
+    worse than no total.
+    """
+    if not tensors or any(t["bytes"] is None for t in tensors):
+        return None
+    total = sum(t["bytes"] for t in tensors)
+    embed = sum(t["bytes"] for t in tensors if t["name"] in _EMBED_NAMES)
+    head = sum(t["bytes"] for t in tensors if t["name"].startswith("output.weight"))
+    tied = head == 0 and embed > 0
+    # A tied model has no separate head: the embedding matrix is the output projection,
+    # so it is streamed in full every token and must stay in the total.
+    streamed = total if tied else total - embed
+    return {
+        "total_bytes": total,
+        "streamed_bytes": streamed,
+        "embedding_bytes": embed,
+        "head_bytes": embed if tied else head,
+        "tied_embedding": tied,
+        "head_share_pct": (100.0 * (embed if tied else head) / streamed) if streamed else None,
+        "n_tensors": len(tensors),
+    }
+
+
+def type_map(tensors: List[Dict[str, Any]]) -> Dict[str, int]:
+    """How many tensors of each ggml type, biggest contributor first."""
+    counts: Dict[str, int] = {}
+    for t in tensors:
+        counts[t["type"]] = counts.get(t["type"], 0) + 1
+    return dict(sorted(counts.items(), key=lambda kv: -kv[1]))
 
 
 def _quant_from_name(path: str) -> Optional[str]:

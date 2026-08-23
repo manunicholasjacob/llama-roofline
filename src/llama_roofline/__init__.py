@@ -10,7 +10,7 @@ memory-read ceiling, and the decode/prefill throughput of your own GGUF models v
 llama.cpp's ``llama-bench`` -- then reports how close you are to the wall.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Manu Nicholas Jacob"
 __license__ = "MIT"
 

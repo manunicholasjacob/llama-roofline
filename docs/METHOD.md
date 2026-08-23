@@ -89,11 +89,35 @@ model's operating point; the thread knee is the smallest count within 2% of that
 
 ## 4. Bytes per token
 
-The tool prefers `model_size` from llama-bench's own JSON, which is the resident tensor
-size, and falls back to the file size on disk (summed across shards for a multi-part
-GGUF). The two differ by one or two percent, mostly GGUF metadata.
+There are two conventions in this tool and the difference between them is not cosmetic.
 
-This is exact for a dense transformer at short context. It is wrong in two known ways:
+**`run` uses the model's resident size.** It prefers `model_size` from llama-bench's own
+JSON and falls back to the file size on disk, summed across shards for a multi-part GGUF.
+The two differ by one or two percent, mostly GGUF metadata. This is the convention the
+published fits that this tool reproduces were computed with, and `run` keeps it so that
+the reproduction keeps working. A tool that quietly stops reproducing its own reference
+result has lost the only correctness check it has.
+
+**`diagnose` counts the tensors decode actually reads.** It parses the GGUF tensor table
+and sums the repeating layers plus the output head. The token embedding is excluded,
+because generating a token looks up one row of it rather than streaming the whole matrix,
+unless the model ties the embedding to the output head, in which case that one tensor is
+the output projection, is streamed in full, and is counted.
+On a 0.5B model that removes 18 to 22% of the file, and the amount removed is
+format-dependent, so it changes which format looks efficient and not just by how much.
+
+The second convention is the more accurate account of decode traffic, which is why the
+newer command uses it, and `diagnose --file-bytes` switches back when you want the two
+commands to agree.
+
+The tensor-table parse is checked against an external result rather than against itself.
+A published study parsed the per-tensor type maps of eight canonical Qwen2.5-0.5B
+artifacts and reported their streamed sizes as 317, 330, 330, 332, 334, 374, 477 and
+501 MiB. This tool's parser, given the same eight files, returns every one of them to
+within 0.2%.
+
+Both conventions are exact for a dense transformer at short context, and both are wrong
+in the same two known ways:
 
 - **Mixture of experts.** Only the routed experts are read per token, so bytes-per-token
   is far below the model size. The tool parses the GGUF header, detects `expert_count`,
@@ -103,6 +127,18 @@ This is exact for a dense transformer at short context. It is wrong in two known
   At the default 128-token generation it is negligible next to the weights. At long
   context it is not, and the roofline stops predicting throughput. This is measured, not
   asserted: see [Long context](#7-long-context-where-this-model-stops-working) below.
+
+### What the tensor table also tells you
+
+The same parse is what `inspect` prints, and it answers a question the filename cannot.
+A GGUF format label names a quantization recipe, not a tensor type. `llama-quantize`
+substitutes a different type per tensor when a shape does not divide evenly by the block
+size, and it substitutes different ones depending on whether the file was built from FP16
+or requantized from an intermediate. In a canonical Qwen2.5-0.5B Q4_K_M file, 12% of the
+repeating-layer bytes are Q4_K and 54% are Q5_0, because the embedding dimension of 896
+is not divisible by 256. Two files with the same name can therefore hold different maps
+and decode at very different rates, which is what makes `inspect` worth running before
+trusting any benchmark that did not pin its artifact.
 
 ## 5. The fit
 
@@ -124,10 +160,14 @@ the report says so instead of drawing a line through it.
 
 ## 6. What this does not measure
 
-- **Output quality.** Nothing here evaluates perplexity or task accuracy. A Q2 model is
-  faster than a Q8 model and that says nothing about whether it is still useful.
-- **Energy.** Not in this release. Energy per token is not simply proportional to time
-  per token, and measuring it properly needs a power rail this tool cannot assume.
+- **Output quality, on your machine.** Nothing this tool runs evaluates perplexity or task
+  accuracy. A Q2 model is faster than a Q8 model and that says nothing about whether it is
+  still useful. `advise` does show perplexity, but it comes from the shipped study, on one
+  model family at one scale, and it is a property of those artifacts rather than of yours.
+- **Energy, on your machine.** Measuring it needs a power rail this tool cannot assume.
+  `advise` reports energy per token where the shipped study had one, which is the
+  Raspberry Pi's PMIC and nowhere else, and it says the column is absent rather than
+  printing a zero anywhere else.
 - **GPU inference.** Offload is detected and warned about. The ceiling measured is system
   RAM bandwidth; offloaded layers stream from VRAM instead, so the percentages do not
   apply. `--gpu-layers 0` is the default for this reason.
@@ -181,7 +221,42 @@ Two consequences, both of which the tool states rather than hides:
 Making bytes-per-token KV-aware would fix the first-order part of this, but not the
 attention term, which is why the fit is restricted to short context rather than patched.
 
-## 8. Provenance
+## 8. Where the quantization rankings come from
+
+`advise` does not measure anything on your machine unless you ask it to with `--measure`.
+It reads `src/llama_roofline/data/format_matrix.csv`, which holds one row per measurement
+with the file that measurement came from in its `source` column, and nothing in it is
+averaged across cores.
+
+The measurements are a controlled format study: Qwen2.5-0.5B-Instruct and
+Qwen2.5-1.5B-Instruct, quantized from the official FP16 GGUF into eight formats, run
+under `llama-bench -p 128 -n 128` with five repetitions on three microarchitectures. The
+Cortex-A76 is a Raspberry Pi 5. The Golden Cove and Gracemont rows are one i7-12700H with
+`llama-bench` pinned by affinity mask to one core type at a time, so the core varies while
+the memory system stays fixed. Energy is the Pi's PMIC rail sum, collected in a separate
+identical run because sampling power perturbs decode, and it is uncalibrated, so it
+supports ratios between formats and not absolute joules. Perplexity is 100 chunks of 512
+tokens from a public-domain corpus, measured at 0.5B on the same artifacts, so it is a
+property of the file rather than of the core. The dataset is archived at
+[10.5281/zenodo.21938812](https://doi.org/10.5281/zenodo.21938812).
+
+Four rules keep the advice honest:
+
+- **No global ranking.** Every table is one core at one thread count at one model scale,
+  because the orderings genuinely differ. Q4_0 leads Golden Cove at two threads; IQ4_NL
+  leads Gracemont at four; the A76 converges the whole 4-bit class to within 4%.
+- **The evidence level is stated per core.** Detection distinguishes the exact machine
+  measured, a different chip with the same core design, a close relative, and nothing.
+  Only the first three produce a table, the third is labelled as extrapolation in the
+  output, and the fourth produces the recipe for measuring it yourself instead.
+- **Speed is compared at matched bytes.** Ranking Q8_0 against Q4_0 measures size, which
+  everyone already knows about. The advisor also reports the spread within the largest
+  group of formats that stream within 3% of the same bytes, which is the only comparison
+  that isolates what the format itself costs.
+- **Absent is not zero.** There is no energy column on x86, because Windows reports no
+  package power without a driver and the study did not measure it.
+
+## 9. Provenance
 
 The analysis reimplements, in portable form, the decode-roofline methodology from a study
 of LLM inference on a 2 GB Raspberry Pi 5 and an x86 laptop. The tool reproduces that

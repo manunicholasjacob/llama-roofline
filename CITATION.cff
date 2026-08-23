@@ -22,7 +22,11 @@ abstract: >-
   memory-read bandwidth with a portable microbenchmark, benchmarks the user's own
   GGUF models with llama-bench across a thread sweep, fits the decode roofline
   tok/s = BW_eff / model_bytes, and reports the resulting bandwidth utilisation
-  together with the optimal quantization and thread configuration.
+  together with the optimal quantization and thread configuration. It also answers
+  which quantization format to run on the local CPU core, from a shipped matrix of
+  controlled measurements across three microarchitectures that includes energy and
+  perplexity, stating its evidence basis per core and declining to guess on silicon
+  it has no measurement for.
 keywords:
   - llama.cpp
   - large language models
@@ -31,8 +35,8 @@ keywords:
   - quantization
   - edge inference
 license: MIT
-version: 0.1.0
-date-released: "2026-08-07"
+version: 0.2.0
+date-released: "2026-08-23"
 references:
   - type: software
     title: "llama.cpp"

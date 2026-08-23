@@ -1,6 +1,6 @@
 {
   "title": "llama-roofline: a portable memory-bandwidth roofline for llama.cpp",
-  "description": "<p>A command-line tool that answers one question about a local LLM setup: is token generation limited by memory bandwidth? It measures the machine's sustainable memory-read bandwidth with a portable microbenchmark, benchmarks the user's own GGUF models through <code>llama-bench</code> across a thread sweep, fits the decode roofline <code>tok/s = BW_eff / model_bytes</code>, and prints a plain-English report card with the bandwidth utilisation, the size/quantization frontier, and the thread count beyond which decode stops improving.</p><p>Outputs a roofline figure, a Markdown report, and machine-readable JSON. Pure standard library at its core; numpy and matplotlib are optional extras.</p>",
+  "description": "<p>A command-line tool that answers one question about a local LLM setup: what is limiting token generation on this machine? <code>llama-roofline diagnose</code> needs no configuration. It finds the user's GGUF models, measures the machine's sustainable memory-read bandwidth with a portable microbenchmark, benchmarks decode and prefill through <code>llama-bench</code> across a thread sweep, fits the decode roofline <code>tok/s = BW_eff / bytes_per_token</code>, and prints a plain-English report card: whether decode is bandwidth-bound, the token-per-second ceiling for that model, the thread count to use, and what using every thread costs.</p><p><code>llama-roofline advise</code> answers a second question, which quantization format to run, from a shipped matrix of controlled measurements across an Arm Cortex-A76, an Intel Golden Cove P-core and an Intel Gracemont E-core, including Raspberry Pi PMIC energy and perplexity on the same artifacts. The rankings differ by core, so the tool gives no single global ranking, states its evidence basis per core, and on unmeasured silicon declines to guess and shows how to measure instead. <code>llama-roofline inspect</code> prints a GGUF file's per-tensor type map and the bytes decode actually reads per token, which a format label does not describe.</p><p>Outputs a roofline figure, Markdown reports for sharing, and machine-readable JSON. The analysis, the advisor and the GGUF reader are pure standard library; numpy and matplotlib are needed only to measure the bandwidth ceiling and to draw the figure.</p>",
   "upload_type": "software",
   "license": "mit",
   "access_right": "open",
@@ -19,7 +19,8 @@
     "GGUF",
     "edge inference",
     "computer architecture",
-    "benchmarking"
+    "benchmarking",
+    "energy efficiency"
   ],
   "related_identifiers": [
     {
@@ -31,6 +32,12 @@
       "identifier": "https://github.com/manunicholasjacob/edge-llm-memory-wall",
       "relation": "isSupplementTo",
       "resource_type": "software"
+    },
+    {
+      "identifier": "10.5281/zenodo.21938812",
+      "relation": "references",
+      "resource_type": "dataset",
+      "scheme": "doi"
     }
   ]
 }

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "llama-roofline"
-version = "0.1.0"
+version = "0.2.0"
 description = "Is your llama.cpp decode memory-bandwidth-bound? Measure it, in one command."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -51,6 +51,11 @@ llama-roofline = "llama_roofline.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# The measurement matrix the advisor reads. Without this it is missing from the wheel
+# and `llama-roofline advise` fails on an installed copy while working from a checkout.
+[tool.setuptools.package-data]
+llama_roofline = ["data/*.csv"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

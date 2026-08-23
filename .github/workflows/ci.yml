@@ -33,6 +33,8 @@ jobs:
         run: |
           llama-roofline --version
           llama-roofline membw --membw-mb 64 --membw-reps 1
+          llama-roofline advise --list-cores
+          llama-roofline advise --core cortex-a76
 
   no-optional-deps:
     # The package must import and report without numpy or matplotlib installed.
@@ -65,4 +67,15 @@ jobs:
           assert a['fit']['bw_eff_GBs'] > 0
           assert 'report card' in report.render({'analysis': a, 'system': {}})
           print('ok without numpy/matplotlib')
+          "
+      - name: The advisor and the GGUF reader must work without numpy either
+        run: |
+          llama-roofline advise --core gracemont
+          llama-roofline advise --list-cores
+          python -c "
+          from llama_roofline import advisor, gguf
+          m = advisor.load_matrix()
+          assert advisor.cores(m) == ['cortex-a76', 'golden-cove', 'gracemont']
+          assert gguf.GGML_TYPES[2][0] == 'Q4_0'
+          print('advisor and gguf reader are stdlib-only, as intended')
           "
