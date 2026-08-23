@@ -79,3 +79,24 @@ jobs:
           assert gguf.GGML_TYPES[2][0] == 'Q4_0'
           print('advisor and gguf reader are stdlib-only, as intended')
           "
+
+  # The advisor reads a CSV that lives inside the package. It is present in a checkout
+  # whether or not the build carries it, so only an installed copy can prove the
+  # package-data entry is doing its job. Build what would be uploaded, install it
+  # somewhere else, and run the commands that need the data.
+  installed-package:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip build twine
+      - run: python -m build
+      - run: python -m twine check dist/*
+      - name: Install the wheel and the sdist outside the checkout and run them
+        run: python tools/verify_wheel.py
