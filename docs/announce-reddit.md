@@ -1,107 +1,116 @@
-# r/LocalLLaMA draft
+# r/LocalLLaMA, second attempt
 
-Post this yourself, from your own account, after you have run the tool and read the
-output. Do not post it as written if any number in it is not one you personally measured.
+Read `adoption-tracking/ADOPTION_PIPELINE.md` before posting this. The short version:
+
+- The first version of this post went up on 17 August and AutoModerator removed it for
+  insufficient subreddit karma. Nobody read it. The bot's message asks for a minimum of 5
+  karma earned through comments and then explicitly invites the repost.
+- His three comments there are worth roughly 3 karma. Two more useful ones clears it.
+- After the karma gate a human sees it, and rule 3 bans primarily LLM-generated copy. The
+  old draft has the shape that gets flagged: four consecutive bullets opening with a bolded
+  phrase, an "Honest limitations, up front:" heading, a "**What I would really like:**"
+  closer. That draft is kept at the bottom of this file for reference and should not go up
+  as it stands.
+- Post after 0.2.0 is on PyPI, so the install line is `pip install llama-roofline` rather
+  than a git URL.
+
+This draft leads with the result instead of the tool. Rewrite it in your own words before
+posting, and do not post a number you have not personally re-run.
 
 ---
 
-**Title:** I built a tool that tells you if your llama.cpp decode is memory-bandwidth-bound, and what to actually change
+**Title:** I measured whether i-quants are actually slower than k-quants on CPU, and on
+three cores they were not
 
 **Body:**
 
-Everyone here knows tok/s drops when the model gets bigger. The reason is that dense
-decode reads *every weight from RAM for every token*, so your generation speed is basically
+Every GGUF model card I download says some version of this:
 
-    tok/s = (memory bandwidth you actually get) / (model bytes)
+> These I-quants can also be used on CPU, but will be slower than their K-quant
+> equivalent, so speed vs performance is a tradeoff you'll have to decide.
 
-I got tired of guessing which side of that I was on, so I wrote a small CLI that measures
-both. It benchmarks your own GGUFs through `llama-bench`, measures your machine's real
-sustainable memory read bandwidth, fits the roofline, and then tells you in plain English
-what to change.
+I had been repeating that to people. Then I built a set of quants from one FP16 source and
+measured them, and on the three CPU cores I have access to, that is not what happened.
 
-```
-pip install git+https://github.com/manunicholasjacob/llama-roofline
-llama-roofline run --models ~/models/*.gguf
-```
-
-Here is what it printed on my laptop:
+Qwen2.5-0.5B, one FP16 source, `llama-bench -p 128 -n 128`, five repetitions, each core at
+its own best thread count:
 
 ```
-  Machine   : 12th Gen Intel(R) Core(TM) i7-12700H
-              20 logical / 14 physical cores, 34.0 GB RAM
-  Memory    : 53.9 GB/s sustained read (measured)
-
-  IS YOUR DECODE MEMORY-BOUND?
-------------------------------------------------------------------------
-  YES -- your decode is memory-bandwidth-bound.
-  Token generation is running at 72% of the memory bandwidth this machine
-  can actually sustain.
-
-  THE ROOFLINE
-------------------------------------------------------------------------
-    decode tok/s  =  37.65 GB/s  /  model bytes
-    fitted across 7 models, R^2 = 0.9874
-
-  YOUR MODELS
-------------------------------------------------------------------------
-  model                     quant         size    decode   prefill  thr    GB/s  %ceil
-  ------------------------------------------------------------------------------------
-  qwen0.5b-q2k              Q2_K        333 MB    113.3t      517t    8    37.7    70%
-  qwen0.5b-q4km             Q4_K_M      392 MB     89.3t      351t    8    35.0    65%
-  qwen0.5b-q8               Q8_0        525 MB     78.6t      294t   14    41.3    76%
-  llama1b-q4km              Q4_K_M      800 MB     48.2t      245t   14    38.6    72%
-  qwen1.5b-q4km             Q4_K_M      980 MB     39.3t      179t   14    38.5    71%
-  qwen3b-q4km               Q4_K_M     1.92 GB     21.0t       87t    8    40.3    75%
-  qwen7b-q4km               Q4_K_M     4.68 GB     11.2t       42t   20    52.2    97%
+                              IQ4_NL    Q4_K_M
+Cortex-A76  (Pi 5),  t=2      34.2       25.7    tok/s
+Golden Cove (P-core), t=6    105.5       89.9
+Gracemont   (E-core), t=4     43.6       29.3
 ```
 
-R² of 0.987 across a 14x range of model sizes. One number, the byte count, predicts my
-generation speed well enough that I can work out what a model will run at before I
-download it.
+IQ4_NL beat Q4_K_M on all three. On the Pi it also used 29% less energy per token, from
+the PMIC rails. It is worse on perplexity, 20.70 against 20.12, and that is a real trade,
+but it is a different trade from the one the card describes.
 
-Things it tells you that a raw tok/s number does not:
+My first thought was that I had built the files wrong. I had not, and working out why led
+somewhere more interesting than the speed number.
 
-- **Are you at the wall?** If you are at 85% of your memory ceiling, a faster CPU does
-  nothing for you. If you are at 30%, something is wrong, and it lists what to check.
-- **Your actual thread knee, separately for prefill and decode.** These are different and
-  that is why thread advice here is always contradictory. Prefill is compute-bound and
-  wants all your cores. Decode is memory-bound and stops improving early. On my machine
-  going from 8 threads to 20 cost me 63% of my decode throughput on a 0.5B model.
-- **What a smaller quant will actually buy you**, measured on your own models rather than
-  guessed.
-- **When the model does not apply.** MoE models only read the routed experts per token, so
-  they sit off the dense roofline. It reads the GGUF header, detects them, and excludes
-  them from the fit instead of quietly bending the line.
+At 0.5B the embedding dimension is 896, which is not divisible by 256. `llama-quantize`
+falls back per tensor when a shape does not divide, silently, and in the Q4_K_M file only
+12% of the repeating-layer bytes are actually Q4_K. Seventy percent are Q5_0. The file
+streams 374 MiB per token where the 4-bit files stream about 330, so it is not really a
+4-bit file at this size at all. None of that is visible from the filename.
 
-Honest limitations, up front:
+Two other things fell out of the same runs:
 
-- The bandwidth ceiling it measures is a **lower bound**. It uses numpy kernels for
-  portability, and llama.cpp's hand-written SIMD can stream faster than numpy. If your
-  decode comes out above the ceiling, the tool says the percentages are lower bounds
-  rather than printing ">100% of peak". Pass `--peak-bw` if you have a real STREAM number.
-- CPU inference is the target. GPU offload is detected and warned about, but the ceiling
-  measured is system RAM, not VRAM.
-- Bytes-per-token is the resident model size, so this is a short-context result. Long
-  context adds KV traffic the model does not account for.
-- It measures throughput only. It says nothing about output quality.
+The ranking is not the same on the two core types in one laptop. Q4_0 leads Golden Cove.
+IQ4_NL leads Gracemont. Same binary, same DRAM, same files, opposite answer. On the A76 the
+whole 4-bit class converges to within 4% and the choice becomes energy and quality instead.
 
-MIT licensed, pure standard library at its core (numpy and matplotlib are optional),
-Linux/macOS/Windows. All the actual throughput numbers come from llama.cpp, which does the
-hard part.
+Provenance moves the number more than I expected. The same eight targets requantized from
+a Q8_0 intermediate instead of FP16 carry identical labels, identical nominal bit widths,
+and decoded up to 38% slower on the A76. A benchmark that does not say where its files came
+from is measuring something it has not named.
 
-Repo: https://github.com/manunicholasjacob/llama-roofline
+Caveats, and they matter: three cores, one model family, two sizes. At 1.5B the gap narrows
+a lot and Gracemont flips to Q4_K_M by about 3%, so part of what I measured at 0.5B is the
+divisibility fallback rather than the format. Perplexity is one corpus. Energy is one board
+with uncalibrated rail sums, so treat it as a ratio.
 
-**What I would really like:** run it on hardware I do not have and post your report card.
-Apple Silicon with unified memory, Ryzen with dual-channel DDR5, Snapdragon X, Jetson, old
-Xeons. There is a results gallery in the repo. I am most interested in results that
-*disagree* with the model, because that is where I learn something.
+The tool I used for this is `llama-roofline` and I wrote it. `llama-roofline advise` prints
+the table for whichever core it detects and says plainly when it has no measurement for
+your silicon, which is most silicon. `llama-roofline inspect model.gguf` prints the
+per-tensor type map, which is the part I wish I had checked earlier.
+
+```
+pip install llama-roofline
+llama-roofline advise
+llama-roofline inspect ~/models/whatever.gguf
+```
+
+What I actually want is a fourth core. Apple Silicon, Ryzen, Snapdragon X, anything with a
+different memory system. `llama-roofline advise --plan <model-f16.gguf>` prints the
+llama-quantize commands to build a comparable set and `--measure` benchmarks them. If your
+ordering disagrees with mine I would rather know.
 
 ---
 
 ## Notes for posting
 
-- Post on a weekday morning, US time.
-- Lead with the report card, not the repo link. The output is the pitch.
-- Answer every comment for the first 24 hours. That is where adoption happens.
-- "My numbers look different" is the best possible reply. Ask them to open an issue.
-- If someone finds a bug, fix it and say so in the thread.
+- Do not post this the same hour as the two karma-building comments. Space it.
+- The i-quant line is quoted from a live model card. Re-read the card before posting in
+  case it has been edited, and quote whatever it says then.
+- If someone points out the 1.5B reversal, agree immediately. It is in the post already and
+  conceding a real limit is how this kind of thread goes well.
+- Expect "did you use imatrix". Answer honestly: no, these are plain quantizations from
+  FP16 with no importance matrix, and an imatrix i-quant is a different artifact again.
+- Expect "your 0.5B is too small to matter". That is fair and the 1.5B row is the answer,
+  along with saying that the divisibility fallback is a small-model effect.
+
+---
+
+## The removed draft, kept for reference only
+
+Do not repost this. It is here so the difference is visible: it opens with the tool, four
+bullets in a row start with a bolded phrase, and the limitations arrive under a heading
+that announces its own honesty.
+
+**Title:** I built a tool that tells you if your llama.cpp decode is memory-bandwidth-bound,
+and what to actually change
+
+The full text is in the reddit post at `/r/LocalLLaMA/comments/1vqzlto/`, which is still
+visible to him while logged in.
