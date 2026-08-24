@@ -23,6 +23,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Both the measured report and the unmeasured-silicon path now end with where to send the
   result.
 
+### Added, third pass
+- `gguf.composition()` measures how much of a file is the type its name claims, over the
+  repeating layers, plus the effective bits per weight. `inspect` leads with it. At 0.5B,
+  of eight formats built from one FP16 source, three contain the type they are named after;
+  Q3_K_M and Q2_K contain none of it; Q4_K_M is 12% Q4_K and stores 5.52 bits per weight
+  against a nominal 4.5. At 1.5B the same recipes reach 58 to 100% on-label.
+- The shipped matrix gains `on_label_pct` and `bits_per_weight` per row, and `advise` warns
+  where it prints a table that effect confounds.
+- The 1.5B rows are normalised by streamed bytes parsed from the artifacts rather than by
+  file size, so the two scales are finally comparable. The builder cross-checks its own
+  parse against the study's published 0.5B streamed sizes and refuses to build if they
+  disagree by more than 1%.
+
 ### Changed, second pass
 - The `llama-bench` not-found error leads with `brew`, `winget` and `conda-forge`, which
   llama.cpp documents, and with the prebuilt release archives, rather than with a cmake
@@ -89,7 +102,7 @@ rather than the one the roofline literature asks.
   keep them honest.
 
 ### Tests
-- 149 tests, up from 77. The new ones cover the tensor-table parser against synthetic GGUF
+- 172 tests, up from 77. The new ones cover the tensor-table parser against synthetic GGUF
   files, silicon detection across nine CPU strings including the two that must NOT match
   (Core Ultra and pre-hybrid Intel), the advisor's logic, and the shipped matrix against
   the published table it came from. Reports are asserted to be plain ASCII.

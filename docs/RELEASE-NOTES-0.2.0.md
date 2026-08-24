@@ -33,9 +33,16 @@ the choice comes down to energy and quality instead.
 
 Q4_K_M, which almost every model card recommends, sits below the streaming envelope on all
 three cores at 0.5B: 16% on the A76, 17% on Golden Cove and 30% on Gracemont, each at that
-core's fastest thread setting. On the Pi that is 206 mJ per token against
-IQ4_XS's 143, for 0.58 perplexity points. At 1.5B it recovers. None of that is knowable
-from the filename.
+core's fastest thread setting. On the Pi that is 206 mJ per token against IQ4_XS's 143, for
+0.58 perplexity points.
+
+Read that carefully, because I nearly published a stronger version of it than the data
+supports. A good part of that deficit at 0.5B is not the format. It is that the Q4_K_M file
+at this size is 12% Q4_K and 70% Q5_0, for the reason in the next section, and it streams
+374 MiB per token where the other 4-bit files stream about 330. At 1.5B, where the
+substitution mostly stops, the gap narrows and reverses on two of the three cores. So the
+honest statement is that the ranking is core-specific, that it is confounded at small model
+sizes, and that `advise` says so where it prints such a table.
 
 The rankings come from a controlled study of eight formats built from one FP16 source,
 measured on three microarchitectures with PMIC energy and perplexity on the same
@@ -51,15 +58,36 @@ llama-roofline advise --measure --models ~/models/qwen0.5b-*.gguf
 
 ## What is in the file you downloaded
 
-`llama-roofline inspect` prints the per-tensor type map. A format label names a recipe,
-not a type, and the difference is larger than I expected. In a canonical Qwen2.5-0.5B
-Q4_K_M file, 12% of the repeating-layer bytes are actually Q4_K. Seventy percent are Q5_0,
-because the embedding dimension of 896 does not divide by 256 and the quantizer
-substituted, per tensor, without saying so anywhere the filename can carry.
+`llama-roofline inspect` prints the per-tensor type map. This is the part that surprised me
+most and it is the reason the other numbers here need reading carefully.
 
-That also means two files with the same name can be different artifacts. Requantizing from
-a Q8_0 intermediate instead of FP16 produced files that decoded up to 38% slower on the
-A76 under an identical name and bit width.
+I built eight formats of Qwen2.5-0.5B from one FP16 source. Three of them contain the format
+they are named after. Percentages are of repeating-layer bytes:
+
+```
+Q4_0      100% Q4_0        4.50 bits/weight
+Q8_0      100% Q8_0        8.50
+IQ4_NL     95% IQ4_NL      4.55
+IQ4_XS     24% IQ4_XS      4.48   (70% is IQ4_NL)
+Q6_K       24% Q6_K        7.93   (76% is Q8_0)
+Q4_K_M     12% Q4_K        5.52   (70% is Q5_0)
+Q3_K_M      0% Q3_K        4.57
+Q2_K        0% Q2_K        4.20
+```
+
+K-quants operate on blocks of 256 and this model's embedding dimension is 896, so
+llama-quantize substitutes a type that fits, per tensor, with a warning per tensor and no
+summary. At 1.5B the dimension is wide enough that it mostly stops: Q4_K_M goes to 79%
+on-label, Q3_K_M to 58%, IQ4_XS to 95%.
+
+Small models are where people compare quantization formats, because it is cheap. Small
+models are where the file is least likely to be what it says. `advise` now says so where it
+prints a table at that scale, because a ranking between those files is partly a ranking of
+what the quantizer substituted.
+
+Provenance does the same thing from a different direction. The same eight targets
+requantized from a Q8_0 intermediate instead of FP16 carry identical labels and identical
+nominal bit widths, and decoded up to 38% slower on the A76.
 
 ## Bytes per token, and why two commands disagree
 
@@ -77,7 +105,7 @@ streamed sizes a published study reported independently, it returns all eight to
 
 ## Everything else
 
-149 tests, up from 77. Reports are asserted to be plain ASCII. The no-dependency CI job now
+172 tests, up from 77. Reports are asserted to be plain ASCII. The no-dependency CI job now
 also proves the advisor and the GGUF reader run without numpy.
 
 Full detail in [CHANGELOG.md](../CHANGELOG.md).
