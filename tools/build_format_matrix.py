@@ -17,10 +17,15 @@ from __future__ import annotations
 
 import argparse
 import csv
+import glob
 import json
 import os
 import re
 import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                os.pardir, "src"))
+from llama_roofline import gguf  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, os.pardir, "src", "llama_roofline", "data", "format_matrix.csv")
@@ -31,10 +36,59 @@ MIB = 1024 * 1024
 # embedding table is a row lookup, not a stream, so file size overstates traffic, and it
 # overstates it differently per format. These come from the study's per-tensor type-map
 # parse of each artifact (paper16-format-tax, Table 1 and pi5_canonical_quant.log).
-STREAMED_MIB = {
+PUBLISHED_STREAMED_MIB = {
     "Q4_0": 330, "IQ4_XS": 330, "IQ4_NL": 332, "Q3_K_M": 334,
     "Q2_K": 317, "Q4_K_M": 374, "Q6_K": 477, "Q8_0": 501,
 }
+
+# Filled by --artifacts. Parsing the files gives streamed bytes at both scales, which the
+# study only did at 0.5B, and gives the two columns that separate a fallback effect from a
+# format effect: how much of a file is the type its name claims, and what it really stores
+# per weight.
+PARSED: dict = {}
+
+
+def parse_artifacts(directories):
+    """Read every GGUF under the given directories into PARSED, keyed by (scale, format)."""
+    for scale, directory in directories:
+        for path in sorted(glob.glob(os.path.join(directory, "*.gguf"))):
+            stem = os.path.basename(path)
+            match = re.search(r"-([A-Za-z0-9_]+?)(?:\.fp16src)?\.gguf$", stem)
+            if not match:
+                continue
+            fmt = match.group(1).upper()
+            tensors = gguf.read_tensors(path)
+            stream = gguf.streamed_bytes(tensors)
+            comp = gguf.composition(tensors, fmt)
+            if not stream or not comp:
+                print(f"  ! could not size {stem}", file=sys.stderr)
+                continue
+            PARSED[(scale, fmt)] = {
+                "streamed_MiB": stream["streamed_bytes"] / MIB,
+                "on_label_pct": comp["on_label_pct"],
+                "bits_per_weight": comp["bits_per_weight"],
+            }
+    # The 0.5B streamed figures are a published result. If the parser disagrees with them
+    # the parser is wrong, or the artifacts are not the ones the study used, and either
+    # way the matrix must not be built.
+    for fmt, published in PUBLISHED_STREAMED_MIB.items():
+        got = PARSED.get((0.5, fmt))
+        if not got:
+            continue
+        drift = abs(got["streamed_MiB"] - published) / published
+        if drift > 0.01:
+            raise SystemExit(
+                f"parsed streamed size for {fmt} is {got['streamed_MiB']:.1f} MiB against "
+                f"the published {published} MiB, a {100 * drift:.1f}% difference. Refusing "
+                f"to build a matrix on artifacts that are not the measured ones.")
+    print(f"parsed {len(PARSED)} artifacts, 0.5B streamed sizes agree with the study")
+
+
+def streamed_mib(scale, fmt):
+    hit = PARSED.get((scale, fmt))
+    if hit:
+        return hit["streamed_MiB"]
+    return PUBLISHED_STREAMED_MIB.get(fmt) if scale == 0.5 else None
 
 # One line per core, describing the machine the rows were taken on.
 CORES = {
@@ -58,6 +112,7 @@ CORES = {
 FIELDS = [
     "core", "core_label", "isa", "model", "params_b", "threads", "format",
     "tok_s", "streamed_MiB", "file_MiB", "streamed_GBs", "mJ_per_token", "perplexity",
+    "on_label_pct", "bits_per_weight",
     "repack_coverage_pct", "normalization", "basis", "source",
 ]
 
@@ -113,10 +168,11 @@ def read_x86_summary(path):
 
 def emit(rows, core, model, params_b, threads, fmt, tok_s, file_bytes,
          mJ=None, ppl=None, source="", normalization="streamed_bytes"):
-    streamed_mib = STREAMED_MIB.get(fmt) if normalization == "streamed_bytes" else None
-    gbs = None
-    if streamed_mib:
-        gbs = round(tok_s * streamed_mib * MIB / 1e9, 3)
+    mib = streamed_mib(params_b, fmt)
+    parsed = PARSED.get((params_b, fmt), {})
+    if mib is None:
+        normalization = "file_bytes"
+    gbs = round(tok_s * mib * MIB / 1e9, 3) if mib else None
     rows.append({
         "core": core,
         "core_label": CORES[core]["label"],
@@ -126,11 +182,15 @@ def emit(rows, core, model, params_b, threads, fmt, tok_s, file_bytes,
         "threads": threads,
         "format": fmt,
         "tok_s": round(tok_s, 3),
-        "streamed_MiB": streamed_mib if streamed_mib else "",
+        "streamed_MiB": round(mib, 1) if mib else "",
         "file_MiB": round(file_bytes / MIB, 1) if file_bytes else "",
         "streamed_GBs": gbs if gbs else "",
         "mJ_per_token": round(mJ, 2) if mJ is not None else "",
         "perplexity": ppl if ppl is not None else "",
+        "on_label_pct": (round(parsed["on_label_pct"], 1)
+                         if parsed.get("on_label_pct") is not None else ""),
+        "bits_per_weight": (round(parsed["bits_per_weight"], 2)
+                            if parsed.get("bits_per_weight") is not None else ""),
         "repack_coverage_pct": (COVERAGE_X86.get(fmt, "")
                                 if CORES[core]["isa"] == "x86_64" and params_b == 0.5
                                 else ""),
@@ -143,8 +203,18 @@ def emit(rows, core, model, params_b, threads, fmt, tok_s, file_bytes,
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--raw", required=True, help="paper16-format-tax/data directory")
+    ap.add_argument("--artifacts-05b", help="directory holding the 0.5B GGUFs")
+    ap.add_argument("--artifacts-15b", help="directory holding the 1.5B GGUFs")
     ap.add_argument("--out", default=OUT)
     args = ap.parse_args(argv)
+
+    directories = []
+    if args.artifacts_05b:
+        directories.append((0.5, args.artifacts_05b))
+    if args.artifacts_15b:
+        directories.append((1.5, args.artifacts_15b))
+    if directories:
+        parse_artifacts(directories)
 
     raw = args.raw
     need = ["pi5_canonical.jsonl", "ppl_results.txt", "summary_fp16src_P.txt",
@@ -178,13 +248,14 @@ def main(argv=None) -> int:
     for r in read_pi_jsonl(os.path.join(raw, "pi5_15b.jsonl")):
         emit(rows, "cortex-a76", "Qwen2.5-1.5B-Instruct", 1.5, r["threads"], r["tag"],
              r["tok_s"], r["bytes"], mJ=r.get("mJ_per_tok"),
-             normalization="file_bytes",
-             source="paper16-format-tax/data/pi5_15b.jsonl")
+             source="paper16-format-tax/data/pi5_15b.jsonl"
+                    + ("; streamed bytes parsed from the artifacts" if PARSED else ""))
     for name in ("summary_15b_P.txt", "summary_15b_E.txt"):
         for r in read_x86_summary(os.path.join(raw, name)):
             emit(rows, r["core"], "Qwen2.5-1.5B-Instruct", 1.5, r["threads"], r["format"],
-                 r["tok_s"], r["file_bytes"], normalization="file_bytes",
-                 source=f"paper16-format-tax/data/{name}")
+                 r["tok_s"], r["file_bytes"],
+                 source=f"paper16-format-tax/data/{name}"
+                        + ("; streamed bytes parsed from the artifacts" if PARSED else ""))
 
     rows.sort(key=lambda r: (r["params_b"], r["core"], r["threads"], -r["tok_s"]))
     out = os.path.abspath(args.out)

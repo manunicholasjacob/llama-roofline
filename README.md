@@ -125,9 +125,16 @@ llama-roofline advise
 ```
 
 On the performance cores of the same laptop, running the same binary against the same
-files, Q4_0 wins instead, and Q4_0 is the one sitting mid-pack here on the E-cores. On a Raspberry Pi 5's Cortex-A76 the
-whole 4-bit class converges to within 4% and the choice comes down to energy and quality,
-where IQ4_XS wins. There is no ranking that holds everywhere, which is the point.
+files, Q4_0 wins instead, and Q4_0 is the one sitting mid-pack here on the E-cores. On a
+Raspberry Pi 5's Cortex-A76 the whole 4-bit class converges to within 4% and the choice
+comes down to energy and quality, where IQ4_XS wins. There is no ranking that holds
+everywhere, which is the point.
+
+Read a 0.5B table like that one knowing what is in the files. Most of these are mostly not
+the format they are named after at this size, so part of what separates them is which types
+`llama-quantize` substituted rather than which format was asked for. The report says so
+where it prints such a table, and [the next section](#what-is-actually-in-that-gguf-file)
+is how to check any file you have.
 
 The rankings come from a controlled study of eight formats built from one FP16 source and
 measured on three microarchitectures, with Raspberry Pi PMIC energy and perplexity on the
@@ -154,8 +161,8 @@ files up to 38% slower on the A76 under the same label.
 
 ## What is actually in that GGUF file?
 
-A format label names a recipe, not a type, and two files with the same name can hold
-different tensor maps and decode up to 38% apart.
+A format label names a recipe, not a type, and at small model sizes the recipe substitutes
+so heavily that the name stops describing the file.
 
 ```bash
 llama-roofline inspect ~/models/qwen0.5b-Q4_K_M.gguf
@@ -163,6 +170,7 @@ llama-roofline inspect ~/models/qwen0.5b-Q4_K_M.gguf
 
 ```
   label      : Q4_K_M   architecture: qwen2
+  actually   : 12% Q4_K in the repeating layers, 5.52 bits per weight
   file       : 491 MB, 291 tensors
   per token  : 392 MB read (81% of the file)
   output head: 145 MB, 37% of what is read per token
@@ -178,17 +186,34 @@ llama-roofline inspect ~/models/qwen0.5b-Q4_K_M.gguf
 
   WHAT THE LABEL MEANS HERE
 ------------------------------------------------------------------------
-  A GGUF label names a recipe, not a type. In this file 12% of the
-  repeating-layer bytes are Q4_K, and the rest are Q5_0, Q6_K, Q8_0.
-  The output head is Q8_0. llama-quantize picks a type per tensor from
-  the recipe, from whether the shape divides evenly, and from what the
-  file was converted from.
+  Only 12% of this file's repeating-layer bytes are Q4_K. Most of it
+  is Q5_0 70%, Q6_K 17%, Q8_0 1%. The output head is Q8_0. It stores
+  5.52 bits per weight. A GGUF label names a recipe rather than a
+  type. llama-quantize substitutes per tensor when a shape does not
+  divide by the block size, and it substitutes differently depending
+  on what the file was converted from. Neither is visible from the
+  filename, and at small model sizes the substitution can take over
+  the file.
 ```
 
-Twelve percent. At 0.5B the embedding dimension is 896, which is not divisible by 256, so
-most of this file's tensors fell back to Q5_0 and it streams 374 MiB per token instead of
-the 330 its bit width implies. That is why it sits below the envelope on every core in the
-table above, and none of it is visible from the filename.
+Eight formats of Qwen2.5-0.5B built from one FP16 source, measured over their repeating
+layers:
+
+| format | on-label | bits/weight | what most of it is |
+|---|---:|---:|---|
+| Q4_0 | 100% | 4.50 | |
+| Q8_0 | 100% | 8.50 | |
+| IQ4_NL | 95% | 4.55 | |
+| IQ4_XS | 24% | 4.48 | IQ4_NL 70% |
+| Q6_K | 24% | 7.93 | Q8_0 76% |
+| Q4_K_M | 12% | 5.52 | Q5_0 70% |
+| Q3_K_M | 0% | 4.57 | Q4_0 64%, Q4_K 28% |
+| Q2_K | 0% | 4.20 | Q4_0 75%, Q3_K 24% |
+
+Three of eight are what they say. K-quants want blocks of 256 and this model's embedding
+dimension is 896, so `llama-quantize` substitutes per tensor, warns per tensor, and prints
+no summary. At 1.5B the same recipes land at 58 to 100% on-label, so this is a small-model
+effect, and small models are where quantization comparisons usually get run.
 
 `inspect` is also where the bytes-per-token figure comes from. The token embedding is a row
 lookup rather than a stream, so file size overstates what decode actually reads, by 18 to

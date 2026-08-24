@@ -29,6 +29,9 @@ SPEED_TIE_PCT = 5.0
 # Perplexity differences below this are inside the paired noise of the corpus used, so
 # they do not decide anything.
 PPL_TIE = 0.05
+# Below this share of on-label bytes, a file is mostly not the format its name claims and
+# any comparison involving it is partly measuring llama-quantize's substitutions.
+ON_LABEL_CONFOUNDED = 60.0
 
 # The study these numbers come from, quoted once so every report can point at it.
 SOURCE_NOTE = (
@@ -72,7 +75,8 @@ def load_matrix(path: Optional[str] = None) -> List[Dict[str, Any]]:
         raise MatrixMissing(f"could not read the format matrix at {path}: {exc}") from exc
     for r in rows:
         for k in ("params_b", "tok_s", "streamed_MiB", "file_MiB", "streamed_GBs",
-                  "mJ_per_token", "perplexity", "repack_coverage_pct"):
+                  "mJ_per_token", "perplexity", "repack_coverage_pct",
+                  "on_label_pct", "bits_per_weight"):
             r[k] = _num(r.get(k))
         r["threads"] = int(r["threads"])
     if not rows:
@@ -265,6 +269,13 @@ def advise_core(matrix, core: str, params_b: Optional[float] = None,
     out["lowest_energy"] = min(energy, key=lambda r: r["mJ_per_token"]) if energy else None
     out["has_energy"] = bool(energy)
 
+    # Which of these files are mostly not the format they are named after. At 0.5B most
+    # of them are not, which changes what a ranking between them means.
+    mislabelled = [(r["format"], r["on_label_pct"], r["bits_per_weight"]) for r in rows
+                   if r.get("on_label_pct") is not None
+                   and r["on_label_pct"] < ON_LABEL_CONFOUNDED]
+    out["mislabelled"] = sorted(mislabelled, key=lambda x: x[1])
+
     # Worst value for the bytes it moves, which is the format to warn about.
     if deficits:
         worst = max(deficits, key=deficits.get)
@@ -285,6 +296,30 @@ def cross_core_facts(matrix) -> List[str]:
     """The findings that held on every core measured, computed from the matrix itself."""
     facts: List[str] = []
     scale = 0.5
+
+    # First, because it is a property of the files rather than of a benchmark, and because
+    # it changes how every number below should be read.
+    at_scale = {}
+    for r in matrix:
+        if r["params_b"] == scale and r.get("on_label_pct") is not None:
+            at_scale[r["format"]] = (r["on_label_pct"], r["bits_per_weight"])
+    if at_scale:
+        honest = [f for f, (pct, _) in at_scale.items() if pct >= 90]
+        empty = [f for f, (pct, _) in at_scale.items() if pct < 1]
+        bigger = {f: bpw for f, (pct, bpw) in at_scale.items()}
+        facts.append(
+            f"The label does not describe the file. Of the {len(at_scale)} formats measured "
+            f"at {scale}B, built from one FP16 source, only {len(honest)} contain the type "
+            f"their name claims: " + ", ".join(sorted(honest)) + ". "
+            + (f"{' and '.join(sorted(empty))} contain none of it at all. "
+               if empty else "")
+            + (f"Q4_K_M is {at_scale['Q4_K_M'][0]:.0f}% Q4_K and stores "
+               f"{bigger['Q4_K_M']:.2f} bits per weight against a nominal 4.5. "
+               if "Q4_K_M" in at_scale else "")
+            + "llama-quantize substitutes per tensor when a shape does not divide by the "
+              "block size, and says nothing the filename can carry. At 1.5B the same "
+              "recipes land at 58 to 100% on-label, so this is a small-model effect and it "
+              "is worst exactly where people benchmark quickly.")
 
     # 1. Where the community default lands, per core, at its own best thread count.
     lines = []
@@ -481,6 +516,19 @@ def render_core(adv: Dict[str, Any], confidence: str = "exact", why: str = "") -
         picks.append("The winner changes with thread count on this core (" +
                      ", ".join(bits) + "), so set -t deliberately rather than letting it "
                      "default.")
+    mislabelled = adv.get("mislabelled") or []
+    if mislabelled:
+        worst = mislabelled[0]
+        picks.append(
+            "Read this table knowing what is in the files. "
+            + ", ".join(f"{f} {p:.0f}%" for f, p, _ in mislabelled[:4])
+            + " on-label by repeating-layer bytes, so a ranking between them is partly a "
+              "ranking of what llama-quantize substituted rather than of the formats. "
+            + (f"{worst[0]} contains no {worst[0].rsplit('_', 1)[0]} tensors at all. "
+               if worst[1] < 1 else "")
+            + "Run `llama-roofline inspect` on any file before quoting a comparison "
+              "that involves it.")
+
     spread = adv.get("matched_byte_spread") or {}
     if spread:
         group = next(iter(spread.values()))

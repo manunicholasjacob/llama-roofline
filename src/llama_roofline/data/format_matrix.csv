@@ -1,99 +1,99 @@
-core,core_label,isa,model,params_b,threads,format,tok_s,streamed_MiB,file_MiB,streamed_GBs,mJ_per_token,perplexity,repack_coverage_pct,normalization,basis,source
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,2,Q4_0,34.661,330,408.9,11.994,141.51,21.7077,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,2,IQ4_XS,34.234,330,408.2,11.846,143.07,20.698,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,2,IQ4_NL,34.231,332,410.9,11.917,146.54,20.6971,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,2,Q3_K_M,33.347,334,412.0,11.679,146.94,21.0356,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,2,Q2_K,31.797,317,395.9,10.569,154.6,21.8327,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,2,Q4_K_M,25.675,374,468.6,10.069,205.96,20.118,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,2,Q6_K,23.394,477,620.2,11.701,203.6,19.5191,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,2,Q8_0,22.225,501,644.4,11.675,216.25,19.5185,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,3,Q4_0,31.214,330,408.9,10.801,157.14,21.7077,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,3,IQ4_NL,30.981,332,410.9,10.785,161.9,20.6971,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,3,Q2_K,30.635,317,395.9,10.183,160.47,21.8327,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,3,IQ4_XS,30.469,330,408.2,10.543,160.75,20.698,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,3,Q3_K_M,30.365,334,412.0,10.635,161.37,21.0356,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,3,Q4_K_M,27.57,374,468.6,10.812,191.8,20.118,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,3,Q6_K,20.598,477,620.2,10.303,231.23,19.5191,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,3,Q8_0,18.874,501,644.4,9.915,254.64,19.5185,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,4,Q2_K,30.849,317,395.9,10.254,159.36,21.8327,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,4,Q4_0,29.852,330,408.9,10.33,164.31,21.7077,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,4,IQ4_NL,29.673,332,410.9,10.33,169.04,20.6971,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,4,Q3_K_M,29.228,334,412.0,10.236,167.65,21.0356,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,4,IQ4_XS,28.973,330,408.2,10.026,169.05,20.698,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,4,Q4_K_M,26.07,374,468.6,10.224,202.84,20.118,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,4,Q6_K,19.416,477,620.2,9.711,245.31,19.5191,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,4,Q8_0,17.273,501,644.4,9.074,278.24,19.5185,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q4_0,66.491,330,408.9,23.008,,21.7077,100,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,IQ4_NL,55.974,332,410.9,19.486,,20.6971,94,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q2_K,54.622,317,395.9,18.156,,21.8327,75,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q3_K_M,54.382,334,412.0,19.046,,21.0356,91,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,IQ4_XS,53.342,330,408.2,18.458,,20.698,70,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q6_K,43.995,477,620.2,22.005,,19.5191,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q8_0,42.627,501,644.4,22.394,,19.5185,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q4_K_M,42.395,374,468.6,16.626,,20.118,12,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q4_0,92.605,330,408.9,32.044,,21.7077,100,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,IQ4_NL,92.414,332,410.9,32.172,,20.6971,94,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q2_K,89.589,317,395.9,29.779,,21.8327,75,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,IQ4_XS,88.39,330,408.2,30.586,,20.698,70,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q3_K_M,87.425,334,412.0,30.618,,21.0356,91,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q4_K_M,71.681,374,468.6,28.111,,20.118,12,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q6_K,68.703,477,620.2,34.363,,19.5191,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q8_0,67.531,501,644.4,35.477,,19.5185,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,6,Q4_0,111.422,330,408.9,38.555,,21.7077,100,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,6,IQ4_NL,105.516,332,410.9,36.733,,20.6971,94,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,6,Q2_K,103.718,317,395.9,34.476,,21.8327,75,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,6,IQ4_XS,101.043,330,408.2,34.964,,20.698,70,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,6,Q3_K_M,100.267,334,412.0,35.116,,21.0356,91,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,6,Q4_K_M,89.942,374,468.6,35.272,,20.118,12,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,6,Q8_0,81.366,501,644.4,42.745,,19.5185,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,6,Q6_K,78.737,477,620.2,39.382,,19.5191,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q3_K_M,19.7,334,412.0,6.899,,21.0356,91,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,IQ4_NL,19.348,332,410.9,6.736,,20.6971,94,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q4_0,18.784,330,408.9,6.5,,21.7077,100,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q2_K,18.153,317,395.9,6.034,,21.8327,75,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,IQ4_XS,18.089,330,408.2,6.259,,20.698,70,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q6_K,17.862,477,620.2,8.934,,19.5191,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q8_0,16.751,501,644.4,8.8,,19.5185,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q4_K_M,13.367,374,468.6,5.242,,20.118,12,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,IQ4_NL,43.556,332,410.9,15.163,,20.6971,94,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,IQ4_XS,36.729,330,408.2,12.709,,20.698,70,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q3_K_M,36.435,334,412.0,12.76,,21.0356,91,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q2_K,36.195,317,395.9,12.031,,21.8327,75,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q4_0,35.071,330,408.9,12.136,,21.7077,100,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q8_0,31.188,501,644.4,16.384,,19.5185,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q4_K_M,29.333,374,468.6,11.503,,20.118,12,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q6_K,28.53,477,620.2,14.27,,19.5191,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,2,IQ4_XS,13.324,,978.6,,413.52,,,file_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,2,IQ4_NL,12.072,,1023.1,,356.35,,,file_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,2,Q4_0,12.03,,1016.8,,344.3,,,file_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,2,Q4_K_M,11.191,,1065.6,,359.86,,,file_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,2,Q3_K_M,10.015,,881.6,,494.98,,,file_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,4,Q3_K_M,12.396,,881.6,,399.89,,,file_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,4,IQ4_XS,12.188,,978.6,,452.07,,,file_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,4,Q4_0,9.366,,1016.8,,442.23,,,file_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,4,IQ4_NL,9.308,,1023.1,,462.17,,,file_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl
-cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,4,Q4_K_M,8.222,,1065.6,,489.76,,,file_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,Q4_0,21.359,,1016.8,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,Q4_K_M,20.924,,1065.6,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,IQ4_NL,20.228,,1023.1,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,Q3_K_M,19.457,,881.6,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,IQ4_XS,18.249,,978.6,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,Q8_0,13.171,,1806.8,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,6,Q4_0,42.234,,1016.8,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,6,IQ4_NL,40.716,,1023.1,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,6,Q3_K_M,39.781,,881.6,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,6,Q4_K_M,38.47,,1065.6,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,6,IQ4_XS,38.281,,978.6,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_P.txt
-golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,6,Q8_0,26.355,,1806.8,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_P.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,Q4_K_M,7.292,,1065.6,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,Q4_0,7.021,,1016.8,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,IQ4_NL,6.869,,1023.1,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,Q3_K_M,5.938,,881.6,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,IQ4_XS,5.733,,978.6,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,Q8_0,5.58,,1806.8,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,4,Q4_K_M,14.742,,1065.6,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,4,Q4_0,14.656,,1016.8,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,4,IQ4_NL,14.275,,1023.1,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,4,Q3_K_M,12.392,,881.6,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,4,IQ4_XS,12.075,,978.6,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_E.txt
-gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,4,Q8_0,10.105,,1806.8,,,,,file_bytes,measured,paper16-format-tax/data/summary_15b_E.txt
+core,core_label,isa,model,params_b,threads,format,tok_s,streamed_MiB,file_MiB,streamed_GBs,mJ_per_token,perplexity,on_label_pct,bits_per_weight,repack_coverage_pct,normalization,basis,source
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,2,Q4_0,34.661,330.2,408.9,12.0,141.51,21.7077,100.0,4.5,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,2,IQ4_XS,34.234,329.5,408.2,11.828,143.07,20.698,24.2,4.48,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,2,IQ4_NL,34.231,332.2,410.9,11.924,146.54,20.6971,94.6,4.55,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,2,Q3_K_M,33.347,333.3,412.0,11.655,146.94,21.0356,0.0,4.57,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,2,Q2_K,31.797,317.2,395.9,10.578,154.6,21.8327,0.0,4.2,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,2,Q4_K_M,25.675,373.7,468.6,10.061,205.96,20.118,11.9,5.52,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,2,Q6_K,23.394,476.6,620.2,11.692,203.6,19.5191,24.2,7.93,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,2,Q8_0,22.225,500.8,644.4,11.671,216.25,19.5185,100.0,8.5,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,3,Q4_0,31.214,330.2,408.9,10.806,157.14,21.7077,100.0,4.5,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,3,IQ4_NL,30.981,332.2,410.9,10.793,161.9,20.6971,94.6,4.55,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,3,Q2_K,30.635,317.2,395.9,10.191,160.47,21.8327,0.0,4.2,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,3,IQ4_XS,30.469,329.5,408.2,10.527,160.75,20.698,24.2,4.48,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,3,Q3_K_M,30.365,333.3,412.0,10.613,161.37,21.0356,0.0,4.57,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,3,Q4_K_M,27.57,373.7,468.6,10.804,191.8,20.118,11.9,5.52,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,3,Q6_K,20.598,476.6,620.2,10.295,231.23,19.5191,24.2,7.93,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,3,Q8_0,18.874,500.8,644.4,9.911,254.64,19.5185,100.0,8.5,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,4,Q2_K,30.849,317.2,395.9,10.262,159.36,21.8327,0.0,4.2,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,4,Q4_0,29.852,330.2,408.9,10.335,164.31,21.7077,100.0,4.5,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,4,IQ4_NL,29.673,332.2,410.9,10.337,169.04,20.6971,94.6,4.55,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,4,Q3_K_M,29.228,333.3,412.0,10.216,167.65,21.0356,0.0,4.57,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,4,IQ4_XS,28.973,329.5,408.2,10.01,169.05,20.698,24.2,4.48,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,4,Q4_K_M,26.07,373.7,468.6,10.216,202.84,20.118,11.9,5.52,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,4,Q6_K,19.416,476.6,620.2,9.704,245.31,19.5191,24.2,7.93,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-0.5B-Instruct,0.5,4,Q8_0,17.273,500.8,644.4,9.07,278.24,19.5185,100.0,8.5,,streamed_bytes,measured,paper16-format-tax/data/pi5_canonical.jsonl
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q4_0,66.491,330.2,408.9,23.02,,21.7077,100.0,4.5,100,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,IQ4_NL,55.974,332.2,410.9,19.499,,20.6971,94.6,4.55,94,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q2_K,54.622,317.2,395.9,18.171,,21.8327,0.0,4.2,75,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q3_K_M,54.382,333.3,412.0,19.008,,21.0356,0.0,4.57,91,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,IQ4_XS,53.342,329.5,408.2,18.43,,20.698,24.2,4.48,70,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q6_K,43.995,476.6,620.2,21.988,,19.5191,24.2,7.93,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q8_0,42.627,500.8,644.4,22.384,,19.5185,100.0,8.5,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q4_K_M,42.395,373.7,468.6,16.613,,20.118,11.9,5.52,12,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q4_0,92.605,330.2,408.9,32.06,,21.7077,100.0,4.5,100,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,IQ4_NL,92.414,332.2,410.9,32.193,,20.6971,94.6,4.55,94,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q2_K,89.589,317.2,395.9,29.803,,21.8327,0.0,4.2,75,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,IQ4_XS,88.39,329.5,408.2,30.538,,20.698,24.2,4.48,70,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q3_K_M,87.425,333.3,412.0,30.557,,21.0356,0.0,4.57,91,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q4_K_M,71.681,373.7,468.6,28.089,,20.118,11.9,5.52,12,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q6_K,68.703,476.6,620.2,34.337,,19.5191,24.2,7.93,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q8_0,67.531,500.8,644.4,35.462,,19.5185,100.0,8.5,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,6,Q4_0,111.422,330.2,408.9,38.575,,21.7077,100.0,4.5,100,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,6,IQ4_NL,105.516,332.2,410.9,36.757,,20.6971,94.6,4.55,94,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,6,Q2_K,103.718,317.2,395.9,34.503,,21.8327,0.0,4.2,75,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,6,IQ4_XS,101.043,329.5,408.2,34.91,,20.698,24.2,4.48,70,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,6,Q3_K_M,100.267,333.3,412.0,35.045,,21.0356,0.0,4.57,91,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,6,Q4_K_M,89.942,373.7,468.6,35.245,,20.118,11.9,5.52,12,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,6,Q8_0,81.366,500.8,644.4,42.727,,19.5185,100.0,8.5,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,6,Q6_K,78.737,476.6,620.2,39.352,,19.5191,24.2,7.93,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_P.txt
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q3_K_M,19.7,333.3,412.0,6.886,,21.0356,0.0,4.57,91,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,IQ4_NL,19.348,332.2,410.9,6.74,,20.6971,94.6,4.55,94,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q4_0,18.784,330.2,408.9,6.503,,21.7077,100.0,4.5,100,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q2_K,18.153,317.2,395.9,6.039,,21.8327,0.0,4.2,75,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,IQ4_XS,18.089,329.5,408.2,6.25,,20.698,24.2,4.48,70,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q6_K,17.862,476.6,620.2,8.927,,19.5191,24.2,7.93,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q8_0,16.751,500.8,644.4,8.796,,19.5185,100.0,8.5,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,2,Q4_K_M,13.367,373.7,468.6,5.238,,20.118,11.9,5.52,12,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,IQ4_NL,43.556,332.2,410.9,15.173,,20.6971,94.6,4.55,94,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,IQ4_XS,36.729,329.5,408.2,12.69,,20.698,24.2,4.48,70,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q3_K_M,36.435,333.3,412.0,12.735,,21.0356,0.0,4.57,91,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q2_K,36.195,317.2,395.9,12.041,,21.8327,0.0,4.2,75,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q4_0,35.071,330.2,408.9,12.142,,21.7077,100.0,4.5,100,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q8_0,31.188,500.8,644.4,16.377,,19.5185,100.0,8.5,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q4_K_M,29.333,373.7,468.6,11.494,,20.118,11.9,5.52,12,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-0.5B-Instruct,0.5,4,Q6_K,28.53,476.6,620.2,14.259,,19.5191,24.2,7.93,0,streamed_bytes,measured,paper16-format-tax/data/summary_fp16src_E.txt
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,2,IQ4_XS,13.324,854.7,978.6,11.942,413.52,,94.9,4.3,,streamed_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl; streamed bytes parsed from the artifacts
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,2,IQ4_NL,12.072,892.2,1023.1,11.294,356.35,,95.2,4.54,,streamed_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl; streamed bytes parsed from the artifacts
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,2,Q4_0,12.03,886.0,1016.8,11.176,344.3,,100.0,4.5,,streamed_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl; streamed bytes parsed from the artifacts
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,2,Q4_K_M,11.191,934.7,1065.6,10.968,359.86,,79.4,4.81,,streamed_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl; streamed bytes parsed from the artifacts
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,2,Q3_K_M,10.015,780.3,881.6,8.194,494.98,,58.2,3.82,,streamed_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl; streamed bytes parsed from the artifacts
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,4,Q3_K_M,12.396,780.3,881.6,10.143,399.89,,58.2,3.82,,streamed_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl; streamed bytes parsed from the artifacts
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,4,IQ4_XS,12.188,854.7,978.6,10.924,452.07,,94.9,4.3,,streamed_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl; streamed bytes parsed from the artifacts
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,4,Q4_0,9.366,886.0,1016.8,8.701,442.23,,100.0,4.5,,streamed_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl; streamed bytes parsed from the artifacts
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,4,IQ4_NL,9.308,892.2,1023.1,8.708,462.17,,95.2,4.54,,streamed_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl; streamed bytes parsed from the artifacts
+cortex-a76,Arm Cortex-A76,aarch64,Qwen2.5-1.5B-Instruct,1.5,4,Q4_K_M,8.222,934.7,1065.6,8.059,489.76,,79.4,4.81,,streamed_bytes,measured,paper16-format-tax/data/pi5_15b.jsonl; streamed bytes parsed from the artifacts
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,Q4_0,21.359,886.0,1016.8,19.843,,,100.0,4.5,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_P.txt; streamed bytes parsed from the artifacts
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,Q4_K_M,20.924,934.7,1065.6,20.508,,,79.4,4.81,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_P.txt; streamed bytes parsed from the artifacts
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,IQ4_NL,20.228,892.2,1023.1,18.924,,,95.2,4.54,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_P.txt; streamed bytes parsed from the artifacts
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,Q3_K_M,19.457,780.3,881.6,15.92,,,58.2,3.82,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_P.txt; streamed bytes parsed from the artifacts
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,IQ4_XS,18.249,854.7,978.6,16.355,,,94.9,4.3,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_P.txt; streamed bytes parsed from the artifacts
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,Q8_0,13.171,1564.6,1806.8,21.609,,,100.0,8.5,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_P.txt; streamed bytes parsed from the artifacts
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,6,Q4_0,42.234,886.0,1016.8,39.236,,,100.0,4.5,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_P.txt; streamed bytes parsed from the artifacts
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,6,IQ4_NL,40.716,892.2,1023.1,38.091,,,95.2,4.54,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_P.txt; streamed bytes parsed from the artifacts
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,6,Q3_K_M,39.781,780.3,881.6,32.55,,,58.2,3.82,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_P.txt; streamed bytes parsed from the artifacts
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,6,Q4_K_M,38.47,934.7,1065.6,37.704,,,79.4,4.81,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_P.txt; streamed bytes parsed from the artifacts
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,6,IQ4_XS,38.281,854.7,978.6,34.309,,,94.9,4.3,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_P.txt; streamed bytes parsed from the artifacts
+golden-cove,Intel Golden Cove (P-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,6,Q8_0,26.355,1564.6,1806.8,43.239,,,100.0,8.5,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_P.txt; streamed bytes parsed from the artifacts
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,Q4_K_M,7.292,934.7,1065.6,7.147,,,79.4,4.81,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_E.txt; streamed bytes parsed from the artifacts
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,Q4_0,7.021,886.0,1016.8,6.523,,,100.0,4.5,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_E.txt; streamed bytes parsed from the artifacts
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,IQ4_NL,6.869,892.2,1023.1,6.426,,,95.2,4.54,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_E.txt; streamed bytes parsed from the artifacts
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,Q3_K_M,5.938,780.3,881.6,4.859,,,58.2,3.82,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_E.txt; streamed bytes parsed from the artifacts
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,IQ4_XS,5.733,854.7,978.6,5.138,,,94.9,4.3,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_E.txt; streamed bytes parsed from the artifacts
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,2,Q8_0,5.58,1564.6,1806.8,9.155,,,100.0,8.5,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_E.txt; streamed bytes parsed from the artifacts
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,4,Q4_K_M,14.742,934.7,1065.6,14.449,,,79.4,4.81,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_E.txt; streamed bytes parsed from the artifacts
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,4,Q4_0,14.656,886.0,1016.8,13.615,,,100.0,4.5,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_E.txt; streamed bytes parsed from the artifacts
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,4,IQ4_NL,14.275,892.2,1023.1,13.355,,,95.2,4.54,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_E.txt; streamed bytes parsed from the artifacts
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,4,Q3_K_M,12.392,780.3,881.6,10.139,,,58.2,3.82,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_E.txt; streamed bytes parsed from the artifacts
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,4,IQ4_XS,12.075,854.7,978.6,10.822,,,94.9,4.3,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_E.txt; streamed bytes parsed from the artifacts
+gracemont,Intel Gracemont (E-core),x86_64,Qwen2.5-1.5B-Instruct,1.5,4,Q8_0,10.105,1564.6,1806.8,16.578,,,100.0,8.5,,streamed_bytes,measured,paper16-format-tax/data/summary_15b_E.txt; streamed bytes parsed from the artifacts

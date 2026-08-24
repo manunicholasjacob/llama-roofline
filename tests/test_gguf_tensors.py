@@ -137,3 +137,89 @@ def test_every_shipped_ggml_type_has_a_sane_block():
         # than half a bit; a typo in the table would land outside that.
         bits = 8.0 * size / block
         assert 0.5 <= bits <= 64.0, (name, bits)
+
+
+# ------------------------------------------------- what the label does and does not say
+
+Q4_K, Q5_0, Q6_K, IQ4_NL = 12, 6, 14, 20
+
+
+def test_composition_measures_the_repeating_layers_only(tmp_path):
+    # The output head is chosen by the recipe and is routinely a different type on
+    # purpose, so counting it would report every honest file as mislabelled.
+    p = write_gguf(tmp_path / "m.gguf", [
+        ("blk.0.attn_q.weight", [256], Q4_0),
+        ("blk.1.attn_q.weight", [256], Q4_0),
+        ("output.weight", [2560], Q8_0),
+        ("blk.0.attn_norm.weight", [256], F32),
+    ])
+    comp = gguf.composition(gguf.read_tensors(p), "Q4_0")
+    assert comp["on_label_pct"] == 100.0
+    assert comp["repeating_tensors"] == 2
+
+
+def test_a_recipe_that_substituted_everything_reports_zero(tmp_path):
+    # A Qwen2.5-0.5B built as Q3_K_M really does contain no Q3_K tensors. Reporting that
+    # as anything other than zero would hide the finding the tool exists to surface.
+    p = write_gguf(tmp_path / "m.gguf", [
+        ("blk.0.w", [256], Q4_0),
+        ("blk.1.w", [256], Q5_0),
+    ])
+    comp = gguf.composition(gguf.read_tensors(p), "Q3_K_M")
+    assert comp["expected_type"] == "Q3_K"
+    assert comp["on_label_pct"] == 0.0
+
+
+def test_the_multi_letter_suffix_resolves_to_the_type_it_means(tmp_path):
+    p = write_gguf(tmp_path / "m.gguf", [("blk.0.w", [256], Q4_K)])
+    assert gguf.composition(gguf.read_tensors(p), "Q4_K_M")["expected_type"] == "Q4_K"
+    p2 = write_gguf(tmp_path / "n.gguf", [("blk.0.w", [256], IQ4_NL)])
+    assert gguf.composition(gguf.read_tensors(p2), "IQ4_NL")["expected_type"] == "IQ4_NL"
+
+
+def test_bits_per_weight_is_what_the_file_stores_not_what_it_claims(tmp_path):
+    # 256 Q4_0 elements is 8 blocks of 18 bytes, which is 4.5 bits per weight. Swap half
+    # of them for Q8_0 and the file stores far more than its name implies.
+    honest = write_gguf(tmp_path / "a.gguf", [("blk.0.w", [256], Q4_0)])
+    assert abs(gguf.composition(gguf.read_tensors(honest), "Q4_0")["bits_per_weight"]
+               - 4.5) < 0.01
+
+    inflated = write_gguf(tmp_path / "b.gguf", [
+        ("blk.0.w", [256], Q4_0), ("blk.1.w", [256], Q8_0)])
+    comp = gguf.composition(gguf.read_tensors(inflated), "Q4_0")
+    assert comp["bits_per_weight"] > 6.0
+    assert comp["on_label_pct"] < 40
+
+
+def test_full_precision_tensors_do_not_drag_the_bit_rate(tmp_path):
+    # Norms are F32 in every recipe and are a rounding error by bytes. Including them
+    # would push every file towards 32 bits per weight for no useful reason.
+    p = write_gguf(tmp_path / "m.gguf", [
+        ("blk.0.w", [256], Q4_0),
+        ("blk.0.attn_norm.weight", [8], F32),
+    ])
+    comp = gguf.composition(gguf.read_tensors(p), "Q4_0")
+    assert abs(comp["bits_per_weight"] - 4.5) < 0.01
+
+
+def test_a_file_with_no_repeating_layers_has_no_composition(tmp_path):
+    p = write_gguf(tmp_path / "m.gguf", [("token_embd.weight", [256], Q4_0)])
+    assert gguf.composition(gguf.read_tensors(p), "Q4_0") is None
+
+
+def test_an_unsized_tensor_makes_the_composition_unavailable(tmp_path):
+    p = write_gguf(tmp_path / "m.gguf", [
+        ("blk.0.w", [256], Q4_0),
+        ("blk.1.w", [30], Q4_0),
+    ])
+    assert gguf.composition(gguf.read_tensors(p), "Q4_0") is None
+
+
+def test_a_format_the_file_contains_none_of_still_names_a_real_type(tmp_path):
+    # Q2_K with no Q2_K tensors must report Q2_K as the expected type, not "Q2", which
+    # is not a ggml type and would read as a parser failure rather than as the finding.
+    p = write_gguf(tmp_path / "m.gguf", [
+        ("blk.0.w", [256], Q4_0), ("blk.1.w", [256], Q5_0)])
+    comp = gguf.composition(gguf.read_tensors(p), "Q2_K")
+    assert comp["expected_type"] == "Q2_K"
+    assert comp["on_label_pct"] == 0.0

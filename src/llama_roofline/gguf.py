@@ -213,6 +213,66 @@ def type_map(tensors: List[Dict[str, Any]]) -> Dict[str, int]:
     return dict(sorted(counts.items(), key=lambda kv: -kv[1]))
 
 
+# Norms and biases are stored in full precision in every recipe. They are a rounding error
+# by bytes and including them would drag the effective bit rate towards 32 for reasons that
+# have nothing to do with the quantization.
+_FULL_PRECISION = ("F32", "F16", "BF16", "F64")
+
+
+def composition(tensors: List[Dict[str, Any]],
+                label: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """How much of a file is actually the type its name claims.
+
+    A GGUF format label names a recipe. The recipe substitutes a different type per tensor
+    when a shape does not divide by the block size, and llama-quantize does that silently.
+    At small model sizes the substitution can take over the file: a Qwen2.5-0.5B built as
+    Q3_K_M contains no Q3_K tensors at all.
+
+    Measured over the repeating layers, because that is where the substitution happens and
+    where decode spends its bytes. Returns None if any tensor could not be sized.
+    """
+    repeating = [t for t in tensors
+                 if t["name"].startswith("blk.") and t["type"] not in _FULL_PRECISION]
+    if not repeating or any(t["bytes"] is None for t in repeating):
+        return None
+
+    total = sum(t["bytes"] for t in repeating)
+    elements = sum(t["elements"] for t in repeating)
+    by_type: Dict[str, int] = {}
+    for t in repeating:
+        by_type[t["type"]] = by_type.get(t["type"], 0) + t["bytes"]
+
+    expected = None
+    if label:
+        label = label.upper()
+        known = {name for name, _, _ in GGML_TYPES.values()}
+        # Q4_K_M means Q4_K tensors, Q4_0 means Q4_0, IQ4_XS means IQ4_XS. Try the label
+        # itself, then the label with its recipe suffix removed. A file can legitimately
+        # contain none of the expected type, so resolve against the ggml type names rather
+        # than against what happens to be in this file: otherwise Q2_K with no Q2_K
+        # tensors reports its expected type as "Q2", which is not a type.
+        for candidate in (label, label.rsplit("_", 1)[0]):
+            if candidate in known:
+                expected = candidate
+                break
+        if expected is None:
+            expected = label
+
+    on_label = by_type.get(expected, 0) if expected else None
+    return {
+        "expected_type": expected,
+        "on_label_bytes": on_label,
+        "on_label_pct": (100.0 * on_label / total) if on_label is not None and total else None,
+        "repeating_bytes": total,
+        "repeating_tensors": len(repeating),
+        # What the file actually costs per weight, against what its name implies.
+        "bits_per_weight": (8.0 * total / elements) if elements else None,
+        "by_type_pct": {k: round(100.0 * v / total, 1)
+                        for k, v in sorted(by_type.items(), key=lambda kv: -kv[1])},
+        "by_type_bytes": dict(sorted(by_type.items(), key=lambda kv: -kv[1])),
+    }
+
+
 def _quant_from_name(path: str) -> Optional[str]:
     m = _QUANT_RE.search(os.path.basename(path))
     return m.group(1).upper() if m else None

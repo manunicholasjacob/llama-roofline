@@ -607,8 +607,14 @@ def cmd_inspect(args: argparse.Namespace) -> int:
         print(report.RULE)
         print(f"  {os.path.basename(path)}")
         print(report.RULE)
+        comp = gguf.composition(tensors, desc.get("quant"))
         print(f"  label      : {desc.get('quant') or 'unknown'}"
               + (f"   architecture: {desc['arch']}" if desc.get("arch") else ""))
+        # The headline. A label is a recipe, and the recipe substitutes silently, so the
+        # first thing worth knowing about a file is how much of it is what it says.
+        if comp and comp.get("on_label_pct") is not None:
+            print(f"  actually   : {comp['on_label_pct']:.0f}% {comp['expected_type']} "
+                  f"in the repeating layers, {comp['bits_per_weight']:.2f} bits per weight")
         print(f"  file       : {size / 1e6:.0f} MB, {len(tensors)} tensors")
         if stream:
             print(f"  per token  : {stream['streamed_bytes'] / 1e6:.0f} MB read "
@@ -635,25 +641,10 @@ def cmd_inspect(args: argparse.Namespace) -> int:
             print(f"    {name:<10}{slot['n']:>9}{slot['bytes'] / 1e6:>10.0f}{share:>7.0f}%")
         print()
 
-        # The type a label implies: Q4_K_M means Q4_K tensors, Q4_0 means Q4_0, IQ4_XS
-        # means IQ4_XS. The repeating layers are where that matters, because the output
-        # head is chosen by the recipe and is often a different type on purpose.
-        label = (desc.get("quant") or "").upper()
-        expected = label if label in by_type else label.rsplit("_", 1)[0]
-        repeating = [t for t in tensors if t["name"].startswith("blk.")
-                     and t["type"] not in ("F32", "F16", "BF16")]
-        rep_bytes = sum(t["bytes"] or 0 for t in repeating)
-        on_label = sum(t["bytes"] or 0 for t in repeating if t["type"] == expected)
-        share = 100.0 * on_label / rep_bytes if rep_bytes else None
-        others: Dict[str, int] = {}
-        for t in repeating:
-            if t["type"] != expected:
-                others[t["type"]] = others.get(t["type"], 0) + (t["bytes"] or 0)
-        ranked = sorted(others, key=lambda k: -others[k])
-
-        if label and share is not None:
-            print("  WHAT THE LABEL MEANS HERE")
-            print(report.THIN)
+        if comp and comp.get("on_label_pct") is not None:
+            share = comp["on_label_pct"]
+            expected = comp["expected_type"]
+            ranked = [t for t in comp["by_type_pct"] if t != expected]
             head_type = None
             for t in tensors:
                 if t["name"].startswith("output.weight") or (
@@ -661,16 +652,29 @@ def cmd_inspect(args: argparse.Namespace) -> int:
                         and t["name"] == "token_embd.weight"):
                     head_type = t["type"]
                     break
-            text = (f"A GGUF label names a recipe, not a type. In this file "
-                    f"{share:.0f}% of the repeating-layer bytes are {expected}"
-                    + (f", and the rest are {', '.join(ranked[:4])}" if ranked else "")
-                    + (f". The output head is {head_type}" if head_type else "")
-                    + ". llama-quantize picks a type per tensor from the recipe, from "
-                      "whether the shape divides evenly, and from what the file was "
-                      "converted from. Two files with this name and this nominal bit "
-                      "width can hold different maps and decode at very different "
-                      "speeds, so a benchmark that does not pin the artifact is "
-                      "measuring something unnamed.")
+
+            print("  WHAT THE LABEL MEANS HERE")
+            print(report.THIN)
+            if share >= 90:
+                lead = (f"This file is what it says: {share:.0f}% of its repeating-layer "
+                        f"bytes are {expected}.")
+            elif share < 1:
+                lead = (f"This file contains no {expected} tensors at all. Its repeating "
+                        f"layers are "
+                        + ", ".join(f"{t} {comp['by_type_pct'][t]:.0f}%"
+                                    for t in ranked[:3]) + ".")
+            else:
+                lead = (f"Only {share:.0f}% of this file's repeating-layer bytes are "
+                        f"{expected}. Most of it is "
+                        + ", ".join(f"{t} {comp['by_type_pct'][t]:.0f}%"
+                                    for t in ranked[:3]) + ".")
+            text = (lead + (f" The output head is {head_type}." if head_type else "")
+                    + f" It stores {comp['bits_per_weight']:.2f} bits per weight."
+                    + " A GGUF label names a recipe rather than a type. llama-quantize"
+                      " substitutes per tensor when a shape does not divide by the block"
+                      " size, and it substitutes differently depending on what the file"
+                      " was converted from. Neither is visible from the filename, and at"
+                      " small model sizes the substitution can take over the file.")
             for line in report._wrap(text, 68):
                 print(f"  {line}")
             print()

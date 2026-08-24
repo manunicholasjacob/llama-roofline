@@ -130,6 +130,41 @@ in the same two known ways:
 
 ### What the tensor table also tells you
 
+The same parse answers a question the filename cannot: how much of a file is the type its
+name claims. `composition()` measures it over the repeating layers, because that is where
+`llama-quantize` substitutes and where decode spends its bytes. The output head is excluded
+because every recipe chooses it separately and on purpose.
+
+Run over eight Qwen2.5-0.5B artifacts built from one FP16 source, and the same recipes at
+1.5B:
+
+| format | 0.5B on-label | 0.5B bits/weight | 1.5B on-label | 1.5B bits/weight |
+|---|---:|---:|---:|---:|
+| Q4_0 | 100% | 4.50 | 100% | 4.50 |
+| Q8_0 | 100% | 8.50 | 100% | 8.50 |
+| IQ4_NL | 95% | 4.55 | 95% | 4.54 |
+| IQ4_XS | 24% | 4.48 | 95% | 4.30 |
+| Q6_K | 24% | 7.93 | not measured | |
+| Q4_K_M | 12% | 5.52 | 79% | 4.81 |
+| Q3_K_M | 0% | 4.57 | 58% | 3.82 |
+| Q2_K | 0% | 4.20 | not measured | |
+
+At 0.5B only three of the eight contain the format they are named after. Two contain none
+of it. Q4_K_M stores 5.52 bits per weight against a nominal 4.5, and 70% of its
+repeating-layer bytes are Q4_0's neighbour Q5_0. At 1.5B the same recipes land between 58
+and 100%, because the embedding dimension grows past the 256 that the k-quant block size
+needs and the substitution stops firing.
+
+Two consequences, and the second is the one that matters:
+
+- A comparison between formats at 0.5B is partly a comparison of what the quantizer
+  substituted. `advise` says so where it prints such a table rather than leaving the reader
+  to find out.
+- Small models are where people benchmark quickly, so this is worst exactly where
+  quantization comparisons are cheapest to run and most often published.
+
+
+
 The same parse is what `inspect` prints, and it answers a question the filename cannot.
 A GGUF format label names a quantization recipe, not a tensor type. `llama-quantize`
 substitutes a different type per tensor when a shape does not divide evenly by the block

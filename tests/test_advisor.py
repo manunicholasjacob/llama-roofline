@@ -148,11 +148,21 @@ def test_scale_snaps_to_a_measured_one(matrix):
     assert advisor.nearest_scale(matrix, "cortex-a76", 0.6) == 0.5
 
 
-def test_1_5b_rows_do_not_pretend_to_have_streamed_bytes(matrix):
+def test_a_row_claiming_streamed_bytes_has_them(matrix):
+    # The 1.5B rows normalised by file size until the artifacts were parsed. Either
+    # convention is defensible; claiming one and carrying the other is not.
     for r in matrix:
-        if r["params_b"] == 1.5:
-            assert r["normalization"] == "file_bytes"
-            assert r["streamed_MiB"] is None
+        if r["normalization"] == "streamed_bytes":
+            assert r["streamed_MiB"], r
+            assert r["streamed_GBs"], r
+        else:
+            assert r["streamed_MiB"] is None, r
+
+
+def test_both_scales_are_now_streamed_normalised(matrix):
+    # Comparing a streamed-byte number at one scale against a file-byte number at another
+    # is the mistake this makes impossible.
+    assert {r["normalization"] for r in matrix} == {"streamed_bytes"}
 
 
 def test_missing_matrix_is_an_error_not_a_silent_empty(tmp_path):
@@ -281,3 +291,64 @@ def test_the_measured_report_says_where_to_send_the_result():
     ]
     text = advisor.render_measured({"cpu": "test", "logical_cores": 8}, measured, [4])
     assert advisor.GALLERY_URL in text
+
+
+# ---------------------------------------------------- what is actually in the files
+
+def test_every_row_says_how_much_of_the_file_is_the_format_it_names(matrix):
+    for r in matrix:
+        assert r["on_label_pct"] is not None, r
+        assert 0.0 <= r["on_label_pct"] <= 100.0, r
+        assert r["bits_per_weight"] and 1.0 < r["bits_per_weight"] < 33.0, r
+
+
+def test_the_on_label_share_is_a_property_of_the_file_not_the_core(matrix):
+    by_file = {}
+    for r in matrix:
+        by_file.setdefault((r["params_b"], r["format"]), set()).add(r["on_label_pct"])
+    for key, values in by_file.items():
+        assert len(values) == 1, (key, values)
+
+
+def test_the_small_model_fallback_is_in_the_data(matrix):
+    # The finding that makes the whole comparison contestable, and therefore the one that
+    # has to survive a regenerated matrix. At 0.5B most of these files are mostly not the
+    # format they name; at 1.5B the same recipes are mostly on-label.
+    def on_label(scale, fmt):
+        return next(r["on_label_pct"] for r in matrix
+                    if r["params_b"] == scale and r["format"] == fmt)
+
+    assert on_label(0.5, "Q3_K_M") == 0.0
+    assert on_label(0.5, "Q2_K") == 0.0
+    assert on_label(0.5, "Q4_K_M") < 15
+    assert on_label(1.5, "Q4_K_M") > 75
+    assert on_label(0.5, "Q4_0") == 100.0
+
+
+def test_the_default_format_stores_more_bits_than_its_name_implies_at_small_scale(matrix):
+    small = next(r for r in matrix
+                 if r["params_b"] == 0.5 and r["format"] == "Q4_K_M")
+    large = next(r for r in matrix
+                 if r["params_b"] == 1.5 and r["format"] == "Q4_K_M")
+    assert small["bits_per_weight"] > 5.4      # nominal is 4.5
+    assert large["bits_per_weight"] < small["bits_per_weight"]
+
+
+def test_the_report_warns_when_the_files_are_mostly_not_what_they_say(matrix):
+    adv = advisor.advise_core(matrix, "cortex-a76", params_b=0.5, threads=2)
+    formats = [f for f, _, _ in adv["mislabelled"]]
+    assert "Q3_K_M" in formats and "Q4_K_M" in formats
+    text = "\n".join(advisor.render_core(adv))
+    assert "Read this table knowing what is in the files" in " ".join(text.split())
+    assert "contains no Q3_K tensors" in " ".join(text.split())
+
+
+def test_the_warning_goes_quiet_where_the_files_are_honest(matrix):
+    adv = advisor.advise_core(matrix, "cortex-a76", params_b=1.5)
+    assert [f for f, _, _ in adv["mislabelled"]] == ["Q3_K_M"]
+
+
+def test_the_label_finding_leads_the_cross_core_facts(matrix):
+    first = advisor.cross_core_facts(matrix)[0]
+    assert first.startswith("The label does not describe the file")
+    assert "only 3 contain the type their name claims" in first

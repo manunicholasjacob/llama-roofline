@@ -1,116 +1,118 @@
 # r/LocalLLaMA, second attempt
 
-Read `adoption-tracking/ADOPTION_PIPELINE.md` before posting this. The short version:
+Read `adoption-tracking/ADOPTION_PIPELINE.md` before posting. The short version:
 
-- The first version of this post went up on 17 August and AutoModerator removed it for
-  insufficient subreddit karma. Nobody read it. The bot's message asks for a minimum of 5
-  karma earned through comments and then explicitly invites the repost.
-- His three comments there are worth roughly 3 karma. Two more useful ones clears it.
-- After the karma gate a human sees it, and rule 3 bans primarily LLM-generated copy. The
-  old draft has the shape that gets flagged: four consecutive bullets opening with a bolded
-  phrase, an "Honest limitations, up front:" heading, a "**What I would really like:**"
-  closer. That draft is kept at the bottom of this file for reference and should not go up
-  as it stands.
-- Post after 0.2.0 is on PyPI, so the install line is `pip install llama-roofline` rather
-  than a git URL.
+- The first version went up on 17 August and AutoModerator removed it for insufficient
+  subreddit karma. Nobody read it. The bot asks for a minimum of 5 karma earned through
+  comments and then explicitly invites the repost. You are near 3.
+- After the karma gate a human reads it, and rule 3 bans primarily LLM-generated copy.
+- Post after 0.2.0 is on PyPI so `pip install llama-roofline` is true.
 
-This draft leads with the result instead of the tool. Rewrite it in your own words before
-posting, and do not post a number you have not personally re-run.
+**The claim changed between drafts and you should know why.** The earlier draft led with
+i-quants beating k-quants on CPU. Parsing the tensor maps at both model sizes showed that
+most of that gap at 0.5B is llama-quantize substituting types, not the format, and the
+comparison reverses on two cores at 1.5B. Leading with it would have been picked apart, and
+the person doing the picking would have been right. What replaced it is stronger, because
+it is a property of the files rather than a benchmark result, and anyone can check it in
+one command.
+
+Rewrite this in your own words. Do not post a number you have not personally re-run.
 
 ---
 
-**Title:** I measured whether i-quants are actually slower than k-quants on CPU, and on
-three cores they were not
+**Title:** I checked what is actually inside eight GGUF files. Only three contained the
+format their name claims.
 
 **Body:**
 
-Every GGUF model card I download says some version of this:
-
-> These I-quants can also be used on CPU, but will be slower than their K-quant
-> equivalent, so speed vs performance is a tradeoff you'll have to decide.
-
-I had been repeating that to people. Then I built a set of quants from one FP16 source and
-measured them, and on the three CPU cores I have access to, that is not what happened.
-
-Qwen2.5-0.5B, one FP16 source, `llama-bench -p 128 -n 128`, five repetitions, each core at
-its own best thread count:
+I quantized Qwen2.5-0.5B into eight formats from one FP16 source, then read the tensor
+tables instead of trusting the filenames. Percentages are of repeating-layer bytes, which
+is where decode spends its time:
 
 ```
-                              IQ4_NL    Q4_K_M
-Cortex-A76  (Pi 5),  t=2      34.2       25.7    tok/s
-Golden Cove (P-core), t=6    105.5       89.9
-Gracemont   (E-core), t=4     43.6       29.3
+Q4_0      100% Q4_0        4.50 bits/weight
+Q8_0      100% Q8_0        8.50
+IQ4_NL     95% IQ4_NL      4.55
+IQ4_XS     24% IQ4_XS      4.48   (70% of it is IQ4_NL)
+Q6_K       24% Q6_K        7.93   (76% is Q8_0)
+Q4_K_M     12% Q4_K        5.52   (70% is Q5_0)
+Q3_K_M      0% Q3_K        4.57   (64% Q4_0, 28% Q4_K)
+Q2_K        0% Q2_K        4.20   (75% Q4_0, 24% Q3_K)
 ```
 
-IQ4_NL beat Q4_K_M on all three. On the Pi it also used 29% less energy per token, from
-the PMIC rails. It is worse on perplexity, 20.70 against 20.12, and that is a real trade,
-but it is a different trade from the one the card describes.
+A file named Q3_K_M with no Q3_K tensors in it was not what I expected to find. Q4_K_M
+storing 5.52 bits per weight when the name implies 4.5 was not either.
 
-My first thought was that I had built the files wrong. I had not, and working out why led
-somewhere more interesting than the speed number.
+The cause is not a bug. `llama-quantize` substitutes a higher type per tensor when a shape
+does not divide by the block size, and k-quants need 256. Qwen2.5-0.5B has an embedding
+dimension of 896, which does not. The tool prints a warning per tensor and no summary, so
+unless you are watching the scroll you get a file that is mostly something else and a name
+that says otherwise.
 
-At 0.5B the embedding dimension is 896, which is not divisible by 256. `llama-quantize`
-falls back per tensor when a shape does not divide, silently, and in the Q4_K_M file only
-12% of the repeating-layer bytes are actually Q4_K. Seventy percent are Q5_0. The file
-streams 374 MiB per token where the 4-bit files stream about 330, so it is not really a
-4-bit file at this size at all. None of that is visible from the filename.
+It goes away with scale. Same recipes on Qwen2.5-1.5B:
 
-Two other things fell out of the same runs:
+```
+              0.5B      1.5B
+Q4_K_M        12%       79%
+Q3_K_M         0%       58%
+IQ4_XS        24%       95%
+```
 
-The ranking is not the same on the two core types in one laptop. Q4_0 leads Golden Cove.
-IQ4_NL leads Gracemont. Same binary, same DRAM, same files, opposite answer. On the A76 the
-whole 4-bit class converges to within 4% and the choice becomes energy and quality instead.
+Which is the part I think matters here. Small models are where people benchmark
+quantization, because it is cheap and fast, and small models are exactly where the file is
+least likely to be what it says. If you have compared quants on a 0.5B or a 1B and drawn a
+conclusion about the format, you may have measured the substitution.
 
-Provenance moves the number more than I expected. The same eight targets requantized from
-a Q8_0 intermediate instead of FP16 carry identical labels, identical nominal bit widths,
-and decoded up to 38% slower on the A76. A benchmark that does not say where its files came
-from is measuring something it has not named.
+Two more things fell out of the same files.
 
-Caveats, and they matter: three cores, one model family, two sizes. At 1.5B the gap narrows
-a lot and Gracemont flips to Q4_K_M by about 3%, so part of what I measured at 0.5B is the
-divisibility fallback rather than the format. Perplexity is one corpus. Energy is one board
-with uncalibrated rail sums, so treat it as a ratio.
+Bytes per token is not file size. Decode reads the repeating layers and the output head
+every token and looks up one row of the embedding, so these files read 18 to 22% fewer
+bytes than they weigh, and the gap is format-dependent. At 0.5B the output head alone is
+about 40% of what moves per token.
 
-The tool I used for this is `llama-roofline` and I wrote it. `llama-roofline advise` prints
-the table for whichever core it detects and says plainly when it has no measurement for
-your silicon, which is most silicon. `llama-roofline inspect model.gguf` prints the
-per-tensor type map, which is the part I wish I had checked earlier.
+Provenance changes the file under an unchanged name. The same eight targets requantized
+from a Q8_0 intermediate instead of FP16 carry identical labels and identical nominal bit
+widths, and decoded up to 38% slower on a Cortex-A76.
+
+You can check any file you have:
 
 ```
 pip install llama-roofline
-llama-roofline advise
 llama-roofline inspect ~/models/whatever.gguf
 ```
 
-What I actually want is a fourth core. Apple Silicon, Ryzen, Snapdragon X, anything with a
-different memory system. `llama-roofline advise --plan <model-f16.gguf>` prints the
-llama-quantize commands to build a comparable set and `--measure` benchmarks them. If your
-ordering disagrees with mine I would rather know.
+It prints the per-tensor type map, how much of it is on-label, the effective bits per
+weight, and the bytes decode actually reads. It is a read of the header, so it takes about
+a second and touches nothing.
+
+Caveats: one model family, two sizes, and this is a property of how these files were built
+rather than a claim about every GGUF on Hugging Face. Files from a quantizer using an
+importance matrix are a different artifact again and I have not measured those.
+
+If you run it on something you downloaded rather than built, I would like to know what it
+says. Especially if a file turns out to be exactly what it claims, because so far the ones
+that were are the two simplest formats.
 
 ---
 
 ## Notes for posting
 
-- Do not post this the same hour as the two karma-building comments. Space it.
-- The i-quant line is quoted from a live model card. Re-read the card before posting in
-  case it has been edited, and quote whatever it says then.
-- If someone points out the 1.5B reversal, agree immediately. It is in the post already and
-  conceding a real limit is how this kind of thread goes well.
-- Expect "did you use imatrix". Answer honestly: no, these are plain quantizations from
-  FP16 with no importance matrix, and an imatrix i-quant is a different artifact again.
-- Expect "your 0.5B is too small to matter". That is fair and the 1.5B row is the answer,
-  along with saying that the divisibility fallback is a small-model effect.
+- The claim is about files, not about benchmarks, which is why it is hard to argue with.
+  Keep it that way. Do not drift into "and therefore i-quants beat k-quants", because that
+  part does not survive at 1.5B.
+- Expect "this is known". Some people do know it. The reply is that the aggregate is not
+  reported anywhere, and 0% on a Q3_K_M file is a number nobody has published.
+- Expect "imatrix quants are different". Agree. They are, and you have not measured them.
+- Expect somebody to point out that the substitution is deliberate and correct behaviour.
+  It is. The finding is not that llama-quantize is broken, it is that the resulting file is
+  not described by its name and that people compare files by name.
+- If it goes well, the follow-up worth having is somebody running `inspect` on a
+  well-known download and posting what it says.
 
 ---
 
-## The removed draft, kept for reference only
+## The removed draft
 
-Do not repost this. It is here so the difference is visible: it opens with the tool, four
-bullets in a row start with a bolded phrase, and the limitations arrive under a heading
-that announces its own honesty.
-
-**Title:** I built a tool that tells you if your llama.cpp decode is memory-bandwidth-bound,
-and what to actually change
-
-The full text is in the reddit post at `/r/LocalLLaMA/comments/1vqzlto/`, which is still
-visible to him while logged in.
+Do not repost it. It opened with the tool, four consecutive bullets started with a bolded
+phrase, and the limitations arrived under a heading that announced its own honesty. It is
+still visible to you at `/r/LocalLLaMA/comments/1vqzlto/`.

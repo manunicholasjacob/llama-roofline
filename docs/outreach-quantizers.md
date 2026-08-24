@@ -1,92 +1,93 @@
 # A note to the people whose model cards answer this question
 
-Staged, not sent. Send it after the r/LocalLLaMA post exists, so there is something to
-point at that is not just a repository.
+Staged, not sent. Send it after the r/LocalLLaMA post exists, so there is something to point
+at that is not just a repository. Tone is deliberately soft, per the decision of record:
+first contact with someone who owes you nothing, and a card edit is worth more to the record
+than to the tool anyway.
 
 ## Who, and why them
 
-Nearly everyone who downloads a GGUF gets it from one of a small number of quantizers, and
-their model cards carry a "Which file should I choose?" section that is the community's
-default answer to the question this tool exists for. `bartowski/Qwen_Qwen3.6-35B-A3B-GGUF`
-alone is at 435,666 downloads, and the section is boilerplate across the cards, so the
-readership is much larger than any one repo.
+Nearly everyone who downloads a GGUF gets it from a small number of quantizers, and their
+model cards carry a "Which file should I choose?" section that is the community's default
+answer. `bartowski/Qwen_Qwen3.6-35B-A3B-GGUF` alone is at 435,666 downloads, and the section
+is boilerplate across the cards, so the readership is much larger than any one repo.
 
-The last line of that section, read from the live card on 23 August 2026:
+**The claim to make is not the one I had first.** The earlier draft argued that the card's
+line about i-quants being slower on CPU is wrong. Parsing the tensor maps at two model sizes
+showed that most of that gap at 0.5B is llama-quantize substituting types rather than the
+format itself, and the comparison reverses on two cores at 1.5B. Leading with it would have
+been picked apart by someone who was right.
 
-> These I-quants can also be used on CPU, but will be slower than their K-quant
-> equivalent, so speed vs performance is a tradeoff you'll have to decide.
+What replaced it is better, because it is a property of the files and he can check it in a
+minute on his own uploads: at 0.5B, of eight formats built from one FP16 source, only three
+contained the type their name claims.
 
-On three CPU cores, that is not what happened. That is worth telling him, carefully, with
-the limits attached.
+**Where to send it.** The Community tab of one of the model cards, rather than a DM, because
+the observation belongs where the guidance is and a public thread lets other people check
+it. Pick one card, not several.
 
-**Where to send it.** The Community tab of one of the model cards is the right venue rather
-than a DM, because the correction belongs where the guidance is and because a public thread
-lets other people check it. He is also reachable on r/LocalLLaMA. Pick one, not both.
-
-**What not to do.** Do not open with the tool. Do not ask him to link anything. The message
-is a measurement he might want; whether it changes his card is his call and saying so out
-loud makes it easier for him to take.
+**What not to do.** Do not open with the tool. Do not ask him to link anything. Do not tell
+him his card is wrong.
 
 ---
 
 ## Draft
 
-Subject, if it needs one: i-quants on CPU, three cores, and a Q4_K_M oddity at small sizes
+Subject, if it needs one: what is actually inside the small-model GGUFs
 
 ---
 
-Your model cards are where I send people who ask which file to download, so I wanted to
-bring you a measurement rather than an opinion.
+Your cards are where I send people who ask which file to download, so I wanted to bring you
+something I found rather than an opinion.
 
-The "Which file should I choose?" section says i-quants can be used on CPU but will be
-slower than the equivalent k-quant. I had been repeating that. Then I built eight
-quantizations of Qwen2.5-0.5B from one FP16 source and benchmarked them on three CPU cores,
-and IQ4_NL came out ahead of Q4_K_M on all three:
+I quantized Qwen2.5-0.5B into eight formats from one FP16 source and parsed the tensor
+tables before benchmarking anything. Percentages are of repeating-layer bytes:
 
 ```
-                              IQ4_NL    Q4_K_M
-Cortex-A76  (Pi 5),  t=2      34.2       25.7    tok/s
-Golden Cove (P-core), t=6    105.5       89.9
-Gracemont   (E-core), t=4     43.6       29.3
+Q4_0      100% Q4_0        4.50 bits/weight
+Q8_0      100% Q8_0        8.50
+IQ4_NL     95% IQ4_NL      4.55
+IQ4_XS     24% IQ4_XS      4.48   (70% of it is IQ4_NL)
+Q6_K       24% Q6_K        7.93   (76% is Q8_0)
+Q4_K_M     12% Q4_K        5.52   (70% is Q5_0)
+Q3_K_M      0% Q3_K        4.57
+Q2_K        0% Q2_K        4.20
 ```
 
-`llama-bench -p 128 -n 128`, five repetitions, each core at its own best thread count, both
-x86 rows pinned by affinity mask so the core type varies and the memory system does not. On
-the Pi the i-quant also used 29% less energy per token off the PMIC rails. Q4_K_M is better
-on perplexity by 0.58 points, which is a real trade, just not the trade the card describes.
+You will know the cause better than I do: k-quants want blocks of 256, that model's
+embedding dimension is 896, and llama-quantize substitutes per tensor when a shape does not
+divide. It warns per tensor and prints no summary. The part I had not appreciated is how far
+it goes at small sizes, and that Q4_K_M ends up storing 5.52 bits per weight when the name
+implies 4.5.
 
-Part of what I measured at 0.5B is not the format. That scale has an embedding dimension of
-896, which does not divide by 256, so llama-quantize substitutes per tensor: in that
-Q4_K_M file only 12% of the repeating-layer bytes are Q4_K and 70% are Q5_0, and it streams
-374 MiB per token against about 330 for the other 4-bit files. At 1.5B that goes away and
-the gap narrows sharply, to 8% on the A76 and 6% on Golden Cove, with Gracemont flipping to
-Q4_K_M by 3%.
+At 1.5B it mostly goes away: Q4_K_M 79% on-label, Q3_K_M 58%, IQ4_XS 95%.
 
-So I do not think the card is wrong so much as that "slower on CPU" turns out to be a
-property of the kernel coverage on a particular core rather than of CPUs. The ranking moved
-between the two core types inside one laptop: Q4_0 leads the P-cores, IQ4_NL leads the
-E-cores, same binary and same files.
+I am not suggesting anything is wrong with the quantization. What made me want to write is
+that people compare quants on small models precisely because it is cheap, and that is
+exactly where the file is least likely to be what its name says. If someone benchmarks
+Q4_K_M against IQ4_XS on a 0.5B and concludes something about the formats, a good part of
+what they measured is the substitution.
 
-One more thing you may already know and I did not: requantizing the same targets from a
-Q8_0 intermediate instead of FP16 produced files with identical labels and identical
-nominal bit widths that decoded up to 38% slower on the A76. If any of your cards are built
-that way for some models and not others, that difference is invisible to anyone reading the
-filename.
+If it is useful, `llama-roofline inspect <file>.gguf` prints this for any GGUF in about a
+second. It is a header read and it touches nothing else. I built it while measuring decode
+bandwidth and this fell out of it:
+github.com/manunicholasjacob/llama-roofline
 
-Three cores and one model family is a narrow base and I would not want the card changed on
-my say-so. If it is useful, the data and the harness are at
-github.com/manunicholasjacob/llama-roofline, and `llama-roofline inspect <file>.gguf`
-prints the per-tensor type map if you ever want to see what a given upload actually
-contains.
+Whether any of that belongs on a card is your call and I would not want it changed on my
+say-so. I mostly thought you would want to know, and I would be interested to hear whether
+your imatrix builds behave differently, since everything above is plain quantization with no
+importance matrix and you are one of very few people who could answer that.
 
 ---
 
-## If he replies asking for more
+## If he replies
 
-- The full matrix is `src/llama_roofline/data/format_matrix.csv`, 98 rows, each with the
-  measurement file it came from.
+- The matrix is `src/llama_roofline/data/format_matrix.csv`, 98 rows, each with the
+  measurement file it came from, and now with an on-label column and effective bits per
+  weight per artifact.
 - The archived dataset is 10.5281/zenodo.21938812.
-- The thing most worth asking him: whether his imatrix quantizations behave differently.
-  Everything measured here is plain quantization with no importance matrix, and his cards
-  ship imatrix versions. That is a genuine gap and he is one of very few people who could
-  close it.
+- The question most worth asking: whether an importance matrix changes the substitution
+  pattern. It is a real gap, it is cheap for him to answer and expensive for anyone else,
+  and it would make the finding considerably more useful.
+- If he asks about speed, give him the streamed-normalised numbers and the 1.5B reversal in
+  the same message. Do not hand him the 0.5B speed table on its own.
