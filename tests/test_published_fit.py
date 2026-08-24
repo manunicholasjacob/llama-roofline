@@ -62,3 +62,32 @@ def test_the_examples_use_the_resident_size_convention():
         for model in _load(name)["analysis"]["models"]:
             source = model.get("bytes_source", "")
             assert not source.startswith("streamed"), (name, model["name"], source)
+
+
+def test_every_renderer_states_the_operating_point():
+    """A fitted bandwidth from this tool is not comparable without it.
+
+    The same seven models on the same laptop give 35.73 GB/s at a fixed thread count and
+    37.65 here, because this fit takes each model at its own best thread count and so sits
+    on the upper envelope. Both numbers are right. A surface that prints one without
+    saying which is inviting somebody to conclude the two disagree.
+    """
+    from llama_roofline import report
+
+    results = _load("x86-i7-12700H")
+    for renderer in (report.render, report.render_markdown,
+                     report.render_diagnosis, report.render_diagnosis_markdown):
+        text = " ".join(renderer(results).split())
+        assert "37.65" in text, renderer.__name__
+        assert report.FIT_OPERATING_POINT in text, renderer.__name__
+
+
+def test_the_operating_point_claim_is_true_of_the_shipped_example():
+    # Every model in the example is reported at whichever thread count was fastest for it,
+    # and they are not all the same, which is the whole point of the qualifier.
+    models = [m for m in _load("x86-i7-12700H")["analysis"]["models"] if m.get("ok")]
+    threads = {m["decode_threads"] for m in models}
+    assert len(threads) > 1, threads
+    for m in models:
+        best = max(r["decode_ts"] for r in m["runs"] if r.get("decode_ts"))
+        assert m["decode_ts"] == best, m["name"]

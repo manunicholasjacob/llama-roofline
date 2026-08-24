@@ -31,6 +31,14 @@ STREAMED_CAVEAT = (
     "large, or for MoE models."
 )
 
+# A fitted bandwidth from this tool is not comparable with one from a paper unless the
+# operating point is stated. summarize_model() takes each model at its best decode thread
+# count across the sweep, so the fit sits on the upper envelope. The same seven models at a
+# fixed thread count give 35.73 GB/s against this tool's 37.65 on the same laptop. Both are
+# right and they answer different questions, so every surface that prints the number prints
+# this too.
+FIT_OPERATING_POINT = "each model at its own best thread count"
+
 CEILING_CAVEAT_MEASURED = (
     "The ceiling is what this machine sustained under a portable microbenchmark, not the "
     "spec sheet number. It is a floor on the truth, so the percentages are conservative."
@@ -228,7 +236,8 @@ def render(results: Dict[str, Any]) -> str:
         L.append(f"    decode tok/s  =  {fit['bw_eff_GBs']:.2f} GB/s  /  model bytes")
         r2 = fit.get("r2")
         r2s = f"{r2:.4f}" if r2 == r2 else "n/a"
-        L.append(f"    fitted across {fit['n_points']} models, R^2 = {r2s}")
+        L.append(f"    fitted across {fit['n_points']} models, R^2 = {r2s},")
+        L.append(f"    taking {FIT_OPERATING_POINT}")
         if peak:
             L.append(f"    that effective bandwidth is {100 * fit['bw_eff_GBs'] / peak:.0f}% "
                      f"of your {peak:.1f} GB/s ceiling")
@@ -307,7 +316,9 @@ def render_markdown(results: Dict[str, Any]) -> str:
         r2 = fit.get("r2")
         line = f"- **Roofline:** `decode tok/s = {fit['bw_eff_GBs']:.2f} GB/s / model_bytes`"
         if r2 == r2:
-            line += f" (R^2 = {r2:.4f}, n = {fit['n_points']})"
+            line += f" (R^2 = {r2:.4f}, n = {fit['n_points']}, {FIT_OPERATING_POINT})"
+        else:
+            line += f" ({FIT_OPERATING_POINT})"
         L.append(line)
     build = results.get("llama_cpp", {})
     if build.get("build_number"):
@@ -524,7 +535,8 @@ def render_diagnosis(results: Dict[str, Any]) -> str:
         L.append(THIN)
         L.append(f"    decode tok/s  =  {fit['bw_eff_GBs']:.2f} GB/s  /  bytes per token")
         L.append(f"    fitted across {fit['n_points']} models, "
-                 f"R^2 = {f'{r2:.4f}' if r2 == r2 else 'n/a'}")
+                 f"R^2 = {f'{r2:.4f}' if r2 == r2 else 'n/a'},")
+        L.append(f"    taking {FIT_OPERATING_POINT}")
         if r2 == r2 and r2 >= 0.95:
             L.append("    One number predicts your generation speed, so you can size a")
             L.append("    model for a target tok/s instead of guessing.")
@@ -618,7 +630,8 @@ def render_diagnosis_markdown(results: Dict[str, Any]) -> str:
         r2 = fit.get("r2")
         L.append(f"**Roofline:** `decode tok/s = {fit['bw_eff_GBs']:.2f} GB/s / "
                  f"bytes_per_token`"
-                 + (f" (R^2 = {r2:.4f}, n = {fit['n_points']})" if r2 == r2 else ""))
+                 + (f" (R^2 = {r2:.4f}, n = {fit['n_points']}, {FIT_OPERATING_POINT})"
+                    if r2 == r2 else f" ({FIT_OPERATING_POINT})"))
         L.append("")
     L.append("## Caveats")
     L.append("")

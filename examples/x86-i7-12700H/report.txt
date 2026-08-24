@@ -17,7 +17,8 @@
   THE ROOFLINE
 ------------------------------------------------------------------------
     decode tok/s  =  37.65 GB/s  /  model bytes
-    fitted across 7 models, R^2 = 0.9874
+    fitted across 7 models, R^2 = 0.9874,
+    taking each model at its own best thread count
     that effective bandwidth is 70% of your 53.9 GB/s ceiling
     A fit this tight means one number -- bytes -- predicts your
     generation speed. You can size a model for a target tok/s.

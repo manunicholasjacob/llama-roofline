@@ -3,7 +3,7 @@
 - **Machine:** Raspberry Pi 5 (Broadcom BCM2712, Cortex-A76 @ 2.4 GHz), 4 logical cores, 2.0 GB RAM, Linux aarch64
 - **Memory ceiling:** 14.0 GB/s sustained read (supplied)
 - **Verdict:** decode is **memory-bound** (77% of the memory ceiling, range 73-86%)
-- **Roofline:** `decode tok/s = 10.69 GB/s / model_bytes` (R^2 = 0.9800, n = 7)
+- **Roofline:** `decode tok/s = 10.69 GB/s / model_bytes` (R^2 = 0.9800, n = 7, each model at its own best thread count)
 
 | model | quant | size | decode tok/s | prefill tok/s | threads | GB/s | % ceiling |
 |---|---|---:|---:|---:|---:|---:|---:|

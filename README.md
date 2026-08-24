@@ -76,7 +76,8 @@ memory can actually sustain, benchmarks across a thread sweep, and prints this:
   THE ROOFLINE
 ------------------------------------------------------------------------
     decode tok/s  =  37.18 GB/s  /  bytes per token
-    fitted across 3 models, R^2 = 0.9960
+    fitted across 3 models, R^2 = 0.9960,
+    taking each model at its own best thread count
 ```
 
 That is a real run on a real laptop, trimmed of its caveats section, which is printed and
@@ -354,7 +355,9 @@ one of them installed does not count.
 See [`examples/`](examples/) for full output from an Intel i7-12700H (DDR5) and a
 Raspberry Pi 5 (LPDDR4X). Those two machines differ by 3.5x in fitted bandwidth and by
 roughly 20x in price, and both land in the same place: decode between 65% and 97% of the
-memory ceiling, throughput tracking `1/model_bytes` with an R^2 above 0.98.
+memory ceiling, throughput tracking `1/model_bytes` with an R^2 above 0.98. Both fits take
+each model at its own best thread count, which is the upper envelope of the sweep rather
+than any one setting, and every report the tool prints now says so next to the number.
 
 **Please add yours.** Open an issue with the "Results gallery" template and paste your
 `report.md`. Hardware I do not own is the most useful contribution anyone can make, and a

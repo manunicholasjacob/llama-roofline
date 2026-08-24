@@ -3,7 +3,7 @@
 - **Machine:** 12th Gen Intel(R) Core(TM) i7-12700H, 20 logical cores, 34.0 GB RAM, Windows AMD64
 - **Memory ceiling:** 53.9 GB/s sustained read (measured)
 - **Verdict:** decode is **memory-bound** (72% of the memory ceiling, range 65-97%)
-- **Roofline:** `decode tok/s = 37.65 GB/s / model_bytes` (R^2 = 0.9874, n = 7)
+- **Roofline:** `decode tok/s = 37.65 GB/s / model_bytes` (R^2 = 0.9874, n = 7, each model at its own best thread count)
 - **llama.cpp:** build 10154 (`0e4a03622`)
 
 | model | quant | size | decode tok/s | prefill tok/s | threads | GB/s | % ceiling |

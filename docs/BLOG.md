@@ -83,11 +83,12 @@ Here is what it printed for me, across seven models from 0.5B to 7B on one lapto
   THE ROOFLINE
 ------------------------------------------------------------------------
     decode tok/s  =  37.65 GB/s  /  model bytes
-    fitted across 7 models, R^2 = 0.9874
+    fitted across 7 models, R^2 = 0.9874,
+    taking each model at its own best thread count
     that effective bandwidth is 70% of your 53.9 GB/s ceiling
 ```
 
-An R² of 0.987 across a 14x range of model sizes is the part I find genuinely useful. It
+An R^2 of 0.987 across a 14x range of model sizes is the part I find genuinely useful. It
 means one number, the byte count, predicts my generation speed well enough to plan with. I
 can work out what a model will run at before I download it.
 
@@ -97,12 +98,18 @@ I ran this on two machines 3.9x apart in measured memory ceiling and roughly 20x
 price: an Intel i7-12700H laptop with DDR5, and a 2 GB Raspberry Pi 5 with LPDDR4X.
 
 On the Pi, across 7 models spanning three parameter counts and five quantization levels,
-decode throughput fits `10.69 GB/s / model_bytes` with an R² of 0.980, sitting at 73% to
+decode throughput fits `10.69 GB/s / model_bytes` with an R^2 of 0.980, sitting at 73% to
 86% of the board's 13.98 GB/s memory ceiling.
 
 On the laptop, across seven models from 0.5B to 7B, decode fits `37.65 GB/s / model_bytes`
-with an R² of 0.987, at 65% to 97% of its measured 53.9 GB/s ceiling. The 7B model, the
-one with the largest working set, runs closest to the wall at 97%.
+with an R^2 of 0.987, at 65% to 97% of its measured 53.9 GB/s ceiling, taking each model at
+its own best thread count. The 7B model, the one with the largest working set, runs closest
+to the wall at 97%.
+
+Worth saying which operating point that is, because the same seven models at one fixed
+thread count fit 35.73 GB/s instead. Neither number is wrong. This one is the upper
+envelope of the sweep and the other is a single setting, and quoting either without saying
+which invites somebody to conclude they disagree.
 
 The two fitted bandwidths differ by 3.5x. So does the memory.
 
