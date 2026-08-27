@@ -56,6 +56,22 @@ _INTEL_GEN_RE = re.compile(r"(\d{2})th Gen Intel", re.IGNORECASE)
 _INTEL_SKU_RE = re.compile(r"i[3579]-(\d{4,5})([A-Z]*)", re.IGNORECASE)
 _CORE_ULTRA_RE = re.compile(r"Core\(?TM\)?\s*Ultra", re.IGNORECASE)
 
+# Vendor words that settle which instruction set a CPU marketing string is describing.
+# Only consulted when the caller overrides the CPU, because at that point the ISA of
+# the machine actually running this code says nothing about the machine being asked about.
+_ARM_HINTS = ("cortex-", "neoverse", "snapdragon", "apple m", "ampere")
+_X86_HINTS = ("intel", "amd", "ryzen", "epyc", "athlon", "xeon", "pentium", "celeron")
+
+
+def _isa_from_cpu_name(cpu: str) -> Optional[str]:
+    """Which ISA a CPU name implies, or None if the name does not say."""
+    low = cpu.lower()
+    if any(h in low for h in _ARM_HINTS):
+        return "aarch64"
+    if any(h in low for h in _X86_HINTS):
+        return "x86_64"
+    return None
+
 
 # --------------------------------------------------------------------------- arm
 
@@ -113,8 +129,15 @@ def detect(cpu_override: Optional[str] = None) -> Dict[str, Any]:
     """
     system = sysinfo.collect()
     cpu = cpu_override or system.get("cpu") or ""
-    machine = (system.get("machine") or platform.machine() or "").lower()
-    board = _board_model() if platform.system() == "Linux" else None
+    if cpu_override:
+        # An override names a CPU that is deliberately not this one, so every probe of
+        # the running system below would be answering about the wrong machine. Take the
+        # ISA from the name and read nothing off the host.
+        machine = _isa_from_cpu_name(cpu_override) or ""
+        board = None
+    else:
+        machine = (system.get("machine") or platform.machine() or "").lower()
+        board = _board_model() if platform.system() == "Linux" else None
 
     out: Dict[str, Any] = {
         "cpu": cpu,
@@ -130,10 +153,16 @@ def detect(cpu_override: Optional[str] = None) -> Dict[str, Any]:
     }
 
     if machine in ("aarch64", "arm64"):
-        parts = _arm_parts()
-        names = [ARM_PARTS.get(p, f"Arm part {p:#x}") for p in parts]
+        if cpu_override:
+            # No /proc/cpuinfo to consult for a machine we are only being told about, so
+            # the core names have to come out of the name itself. Bounded so that asking
+            # about a Cortex-A720 does not also match the Cortex-A72.
+            names = [n for n in dict.fromkeys(ARM_PARTS.values())
+                     if re.search(rf"\b{re.escape(n)}\b", cpu, re.IGNORECASE)]
+        else:
+            names = [ARM_PARTS.get(p, f"Arm part {p:#x}") for p in _arm_parts()]
         out["detail"] = ", ".join(names) if names else None
-        out["hybrid"] = len(parts) > 1
+        out["hybrid"] = len(names) > 1
         if board and "raspberry pi 5" in board.lower():
             out["cores"] = [{
                 "core": "cortex-a76", "label": "Arm Cortex-A76 (Raspberry Pi 5)",
@@ -163,7 +192,7 @@ def detect(cpu_override: Optional[str] = None) -> Dict[str, Any]:
     if machine in ("x86_64", "amd64"):
         gen = _intel_generation(cpu)
         is_intel = "intel" in cpu.lower()
-        hybrid = _intel_hybrid_from_sysfs() or bool(
+        hybrid = (not cpu_override and _intel_hybrid_from_sysfs()) or bool(
             is_intel and ((gen or 0) >= 12 or _CORE_ULTRA_RE.search(cpu)))
         out["hybrid"] = hybrid
         if not is_intel:
