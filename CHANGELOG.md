@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `silicon.detect(cpu_override=...)` answered from the host instead of from the name it was
+  given. It replaced the CPU string but still picked its branch from `platform.machine()`, so
+  an Intel override on an Apple silicon runner fell into the arm64 path and went looking for
+  `/proc/cpuinfo`. Three tests failed on `macos-latest` and three more passed there for the
+  wrong reason, asserting that a CPU yields no cores while never reaching the x86 logic they
+  exist to check. An override now settles the ISA from the name and reads nothing off the
+  running system. No user-visible change: `cpu_override` is not exposed on the CLI.
+
 ## [0.2.0] - 2026-08-23
 
 ### Added, second pass
