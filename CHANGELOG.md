@@ -6,7 +6,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-03
+
+A patch release: no change to any measurement, fit or advice. It makes bad input fail
+at once with a usage message, tests and declares Python 3.14, and corrects the citation
+metadata.
+
 ### Fixed
+- Numeric options are checked when the command line is parsed. `--threads 1,x` raised a
+  `ValueError` traceback; `--threads 0` was dropped without a word; `--n-prompt 0` was
+  accepted and only failed inside the benchmark loop, after the bandwidth measurement had
+  already run. Worst, `membw --membw-reps 0` printed a ceiling of 0.00 GB/s with no kernel
+  and no thread count and told the user to pass `--peak-bw 0.00` to `run`. Thread lists
+  (`--threads`, `--threads-sweep`) must now be comma-separated whole numbers of at least 1,
+  and `--reps`, `--n-prompt`, `--n-gen`, `--membw-mb`, `--membw-reps` and
+  `advise --threads` must be at least 1. Each is a one-line usage error with exit code 2.
+  `membw.measure()` also refuses `reps < 1`, for callers using it as a library.
+- `llama-roofline report` on a JSON file that is not a results file failed with an
+  `AttributeError` traceback when the file held a list, and printed a blank report card
+  with exit code 0 when it held an empty object. It now says the file is not a
+  llama-roofline results file and exits 2.
 - `silicon.detect(cpu_override=...)` answered from the host instead of from the name it was
   given. It replaced the CPU string but still picked its branch from `platform.machine()`, so
   an Intel override on an Apple silicon runner fell into the arm64 path and went looking for
@@ -14,6 +33,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   wrong reason, asserting that a CPU yields no cores while never reaching the x86 logic they
   exist to check. An override now settles the ISA from the name and reads nothing off the
   running system. No user-visible change: `cpu_override` is not exposed on the CLI.
+- The README and CITATION.cff gave the v0.1.0 version DOI as the one to cite for the
+  v0.2.0 release. They now give `10.5281/zenodo.22131998`, the DOI Zenodo minted for
+  v0.2.0. The concept DOI is unchanged.
+
+### Changed
+- Python 3.14 is tested in CI on Linux, macOS and Windows and declared in the package
+  classifiers. The suite also passes on 3.14 with `DeprecationWarning` raised as an error.
+  CI moves to `actions/checkout@v5` and `actions/setup-python@v6`.
+- `tools/verify_wheel.py` reads the expected version from `pyproject.toml` instead of
+  hard-coding it, so the installed-package job checks the version being released rather
+  than the previous one.
+- Releases are uploaded to PyPI by `.github/workflows/publish.yml` through Trusted
+  Publishing, with no API token anywhere. It refuses to publish when the release tag and
+  `pyproject.toml` disagree.
 
 ## [0.2.0] - 2026-08-23
 
