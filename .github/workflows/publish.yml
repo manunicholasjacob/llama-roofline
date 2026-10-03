@@ -1,0 +1,118 @@
+name: publish
+
+# Uploads to PyPI when a GitHub release is published, using Trusted Publishing.
+#
+# There is no API token anywhere in this repository, in its secrets, or on anyone's
+# laptop. GitHub mints a short-lived OIDC identity for this workflow and PyPI trusts
+# that identity for this project, which means the credential cannot be leaked, copied
+# into a shell history, or left behind on a machine that gets replaced.
+#
+# One-time setup on PyPI, under the project's Settings then Publishing:
+#
+#   Owner            manunicholasjacob
+#   Repository       llama-roofline
+#   Workflow name    publish.yml
+#   Environment      pypi
+#
+# Until that exists the publish job fails with "invalid-publisher", which is the
+# correct behaviour and not a bug in this file.
+#
+# Run it by publishing a release, or by hand from the Actions tab, which is how a
+# release that was cut before this workflow existed gets uploaded.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Tag to build (a release cut before this workflow existed, e.g. v0.2.0)
+        required: true
+        default: v0.2.0
+        type: string
+      target:
+        description: Where to upload
+        required: true
+        default: pypi
+        type: choice
+        options: [pypi, testpypi]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build the sdist and wheel
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+
+      # Catch a tag and pyproject that disagree before PyPI makes it permanent.
+      - name: Refuse to publish if the version does not match the tag
+        if: github.event_name == 'release'
+        run: |
+          python - <<'PY'
+          import os, pathlib, re, sys
+          tag = os.environ["TAG"].lstrip("v")
+          text = pathlib.Path("pyproject.toml").read_text(encoding="utf-8")
+          version = re.search(r'^version\s*=\s*"([^"]+)"', text, re.M).group(1)
+          built = sorted(p.name for p in pathlib.Path("dist").iterdir())
+          print(f"tag {tag!r}, pyproject {version!r}")
+          print("built:", ", ".join(built))
+          if version != tag:
+              sys.exit(
+                  f"refusing to publish: the release is tagged v{tag} but pyproject.toml "
+                  f"says {version}. A version number that does not identify its contents "
+                  "is a correctness bug, and PyPI will not let it be corrected afterwards."
+              )
+          if not any(tag in name for name in built):
+              sys.exit(f"refusing to publish: nothing in dist/ carries the version {tag}")
+          PY
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+
+      - name: Check the metadata renders
+        run: |
+          python -m pip install --upgrade twine
+          python -m twine check dist/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    # The environment is what the Trusted Publisher on PyPI is scoped to, and it is
+    # also where a required reviewer can be added if this should ever need a human
+    # to approve an upload.
+    environment:
+      name: ${{ github.event.inputs.target || 'pypi' }}
+      url: https://pypi.org/project/llama-roofline/
+    permissions:
+      id-token: write        # the whole point: mint the OIDC token, hold no secret
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      # Pinned by commit rather than by tag, unlike the actions above. This one is
+      # handed an identity that can write to PyPI, so a moved tag here would be a
+      # supply-chain event rather than an inconvenience. v1.14.2.
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
+        with:
+          repository-url: >-
+            ${{ github.event.inputs.target == 'testpypi'
+                && 'https://test.pypi.org/legacy/'
+                || 'https://upload.pypi.org/legacy/' }}
