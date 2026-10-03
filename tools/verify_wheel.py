@@ -22,6 +22,7 @@ import argparse
 import glob
 import os
 import shutil
+import re
 import subprocess
 import sys
 import tempfile
@@ -30,11 +31,24 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 DIST = os.path.join(REPO, "dist")
 
+
+def project_version() -> str:
+    """The version pyproject.toml declares, which is what the built artifacts must report.
+
+    Read rather than written into CHECKS, so a release bump cannot leave this script
+    asserting the previous version (it did exactly that until 0.2.1)."""
+    with open(os.path.join(REPO, "pyproject.toml"), encoding="utf-8") as f:
+        match = re.search(r'^version\s*=\s*"([^"]+)"', f.read(), re.M)
+    if not match:
+        raise SystemExit("could not find the version in pyproject.toml")
+    return match.group(1)
+
+
 # Every command here has to work without the checkout on sys.path. `advise` needs the
 # packaged CSV, `inspect` needs the GGUF reader, and `--version` proves the entry point
 # is wired. Nothing here benchmarks, so it runs anywhere in a couple of seconds.
 CHECKS = [
-    (["--version"], "0.2.0"),
+    (["--version"], f"llama-roofline {project_version()}"),
     (["advise", "--list-cores"], "cortex-a76"),
     (["advise", "--core", "gracemont"], "IQ4_NL"),
     (["advise", "--core", "cortex-a76", "--threads", "2"], "mJ/tok"),
