@@ -98,6 +98,10 @@ def measure(working_set_mb: Optional[int] = None,
 
     ``peak_read_GBs`` is the headline: the best read-only kernel over all thread counts.
     """
+    # With no repetitions every kernel scores 0.0 and the "ceiling" comes back as
+    # 0.00 GB/s with no kernel and no thread count, which reads like a measurement.
+    if reps < 1:
+        raise ValueError(f"reps must be at least 1, got {reps}")
     np = _require_numpy()
 
     mb = choose_working_set_mb(working_set_mb, ram_bytes)

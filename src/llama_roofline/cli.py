@@ -27,6 +27,41 @@ def _eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
 
+# --------------------------------------------------------------------------- argument types
+# Checked when the command line is parsed, so a typo fails in a second with a usage
+# message rather than as a traceback, or after a minute of measuring, or not at all.
+
+def positive_int(text: str) -> int:
+    """argparse type: an integer of at least 1."""
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected a whole number, got {text!r}")
+    if value < 1:
+        raise argparse.ArgumentTypeError(f"must be at least 1, got {value}")
+    return value
+
+
+def thread_list(text: str) -> List[int]:
+    """argparse type: comma-separated thread counts, each at least 1, sorted, no repeats."""
+    counts = set()
+    for part in text.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            value = int(part)
+        except ValueError:
+            raise argparse.ArgumentTypeError(
+                f"thread counts are comma-separated whole numbers, got {part!r} in {text!r}")
+        if value < 1:
+            raise argparse.ArgumentTypeError(f"a thread count must be at least 1, got {value}")
+        counts.add(value)
+    if not counts:
+        raise argparse.ArgumentTypeError(f"no thread counts in {text!r}")
+    return sorted(counts)
+
+
 # --------------------------------------------------------------------------- models
 
 def expand_model_args(patterns: List[str]) -> List[str]:
@@ -151,9 +186,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     say(f"llama-bench : {binary}")
 
     system = sysinfo.collect()
-    threads = ([int(t) for t in args.threads.split(",") if t.strip()]
-               if args.threads else sysinfo.default_thread_sweep())
-    threads = sorted(set(t for t in threads if t >= 1))
+    threads = args.threads or sysinfo.default_thread_sweep()
     say(f"machine     : {system.get('cpu')} ({system.get('logical_cores')} logical cores)")
     say(f"threads     : {threads}")
     say(f"models      : {len(paths)}")
@@ -321,6 +354,10 @@ def cmd_report(args: argparse.Namespace) -> int:
     except (OSError, json.JSONDecodeError) as exc:
         _eprint(f"error: could not read {args.results}: {exc}")
         return 2
+    if not isinstance(results, dict) or not isinstance(results.get("analysis"), dict):
+        _eprint(f"error: {args.results} is not a llama-roofline results file (no analysis "
+                "section). `report` takes the roofline.json that `run` or `diagnose` wrote.")
+        return 2
     if results.get("schema_version") != SCHEMA_VERSION:
         _eprint(f"warning: results were written by schema v{results.get('schema_version')}, "
                 f"this build expects v{SCHEMA_VERSION}")
@@ -464,7 +501,7 @@ def cmd_diagnose(args: argparse.Namespace) -> int:
 
     system = sysinfo.collect()
     if args.threads:
-        threads = sorted({int(t) for t in args.threads.split(",") if t.strip()})
+        threads = args.threads
     else:
         threads = sysinfo.default_thread_sweep()
         if args.quick:
@@ -787,8 +824,7 @@ def _advise_by_measuring(args: argparse.Namespace) -> int:
         _eprint(f"error: {exc}")
         return 3
 
-    threads = ([int(t) for t in args.threads_sweep.split(",") if t.strip()]
-               if args.threads_sweep else sysinfo.default_thread_sweep()[:3])
+    threads = args.threads_sweep or sysinfo.default_thread_sweep()[:3]
     system = sysinfo.collect()
     print(f"machine : {system.get('cpu')} ({system.get('logical_cores')} logical cores)")
     print(f"plan    : {len(paths)} file(s) x {len(threads)} thread setting(s)")
@@ -875,10 +911,10 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--llama-bench", metavar="PATH",
                    help="path to llama-bench (default: $LLAMA_BENCH, PATH, then the "
                         "usual build locations)")
-    d.add_argument("--threads", "-t", metavar="LIST",
+    d.add_argument("--threads", "-t", type=thread_list, metavar="LIST",
                    help="comma-separated thread counts (default: 1, half, physical, "
                         "logical)")
-    d.add_argument("--reps", type=int, default=None, metavar="N",
+    d.add_argument("--reps", type=positive_int, default=None, metavar="N",
                    help="llama-bench repetitions per test (default: 3, or 1 with --quick)")
     d.add_argument("--quick", action="store_true",
                    help="fewer thread settings, shorter generations, one repetition. "
@@ -911,7 +947,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="force a core instead of detecting one (see --list-cores)")
     a.add_argument("--list-cores", action="store_true",
                    help="show which cores this build has measurements for")
-    a.add_argument("--threads", type=int, default=None, metavar="N",
+    a.add_argument("--threads", type=positive_int, default=None, metavar="N",
                    help="advise for this thread count (default: the fastest measured)")
     a.add_argument("--scale", type=float, default=None, metavar="B",
                    help="model size in billions of parameters (default: 0.5)")
@@ -923,9 +959,9 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--models", "-m", nargs="+", metavar="GGUF",
                    help="files to benchmark with --measure; several quantizations of "
                         "one model is the useful case")
-    a.add_argument("--threads-sweep", metavar="LIST",
+    a.add_argument("--threads-sweep", type=thread_list, metavar="LIST",
                    help="thread counts for --measure (default: 1, half, physical)")
-    a.add_argument("--reps", type=int, default=None, metavar="N")
+    a.add_argument("--reps", type=positive_int, default=None, metavar="N")
     a.add_argument("--llama-bench", metavar="PATH")
     a.add_argument("--timeout", type=float, default=3600.0, metavar="SEC")
     a.add_argument("--markdown", metavar="PATH", help="also write a shareable Markdown copy")
@@ -950,13 +986,13 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--llama-bench", metavar="PATH",
                    help="path to the llama-bench binary (default: $LLAMA_BENCH, PATH, "
                         "then common build locations)")
-    r.add_argument("--threads", "-t", metavar="LIST",
+    r.add_argument("--threads", "-t", type=thread_list, metavar="LIST",
                    help="comma-separated thread counts (default: 1, half, physical, logical)")
-    r.add_argument("--n-prompt", type=int, default=128, metavar="N",
+    r.add_argument("--n-prompt", type=positive_int, default=128, metavar="N",
                    help="prompt tokens for the prefill test (default: 128; must be > 0)")
-    r.add_argument("--n-gen", type=int, default=128, metavar="N",
+    r.add_argument("--n-gen", type=positive_int, default=128, metavar="N",
                    help="tokens to generate for the decode test (default: 128)")
-    r.add_argument("--reps", type=int, default=3, metavar="N",
+    r.add_argument("--reps", type=positive_int, default=3, metavar="N",
                    help="llama-bench repetitions per test (default: 3)")
     r.add_argument("--depth", type=int, default=None, metavar="N",
                    help="generate with N tokens already in the KV cache (llama-bench -d). "
@@ -975,9 +1011,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="skip the microbenchmark and use this ceiling in GB/s")
     r.add_argument("--skip-membw", action="store_true",
                    help="do not measure the ceiling (utilisation will be unavailable)")
-    r.add_argument("--membw-mb", type=int, default=None, metavar="MB",
+    r.add_argument("--membw-mb", type=positive_int, default=None, metavar="MB",
                    help="microbenchmark working set (default: 512 MB, capped at RAM/8)")
-    r.add_argument("--membw-reps", type=int, default=5, metavar="N",
+    r.add_argument("--membw-reps", type=positive_int, default=5, metavar="N",
                    help="microbenchmark repetitions (default: 5)")
     r.add_argument("--out", "-o", default="llama-roofline-out", metavar="DIR",
                    help="output directory (default: ./llama-roofline-out)")
@@ -988,8 +1024,8 @@ def build_parser() -> argparse.ArgumentParser:
     r.set_defaults(func=cmd_run)
 
     m = sub.add_parser("membw", help="measure this machine's memory-bandwidth ceiling only")
-    m.add_argument("--membw-mb", type=int, default=None, metavar="MB")
-    m.add_argument("--membw-reps", type=int, default=5, metavar="N")
+    m.add_argument("--membw-mb", type=positive_int, default=None, metavar="MB")
+    m.add_argument("--membw-reps", type=positive_int, default=5, metavar="N")
     m.add_argument("--json", metavar="PATH", help="write the measurement to this file")
     m.set_defaults(func=cmd_membw)
 

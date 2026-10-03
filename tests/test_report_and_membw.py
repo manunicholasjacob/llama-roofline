@@ -215,3 +215,11 @@ def test_median_helper():
     assert membw._median([3.0, 1.0, 2.0]) == 2.0
     assert membw._median([4.0, 1.0, 2.0, 3.0]) == 2.5
     assert membw._median([]) == 0.0
+
+
+@pytest.mark.parametrize("reps", [0, -1])
+def test_membw_refuses_zero_repetitions(reps):
+    """With no repetitions every kernel scored 0.0 and the result was a 0.00 GB/s ceiling
+    with no kernel and no thread count, which reads like a measurement."""
+    with pytest.raises(ValueError, match="reps must be at least 1"):
+        membw.measure(working_set_mb=8, thread_counts=[1], reps=reps)

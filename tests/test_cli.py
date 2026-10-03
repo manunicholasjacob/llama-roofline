@@ -181,3 +181,50 @@ def test_run_exits_nonzero_when_every_model_fails(tmp_path, monkeypatch, capsys)
     assert rc == 1
     assert "no model produced a decode measurement" in capsys.readouterr().err
     assert (tmp_path / "out" / "roofline.json").exists()   # output is still kept
+
+
+# --------------------------------------------------------------------------- argument checks
+
+@pytest.mark.parametrize("argv", [
+    ["run", "--models", "x.gguf", "--threads", "1,x"],
+    ["run", "--models", "x.gguf", "--threads", "0"],
+    ["run", "--models", "x.gguf", "--threads", ","],
+    ["run", "--models", "x.gguf", "--reps", "0"],
+    ["run", "--models", "x.gguf", "--n-prompt", "0"],
+    ["run", "--models", "x.gguf", "--n-gen", "-5"],
+    ["run", "--models", "x.gguf", "--membw-reps", "0"],
+    ["membw", "--membw-reps", "-1"],
+    ["membw", "--membw-mb", "0"],
+    ["diagnose", "--threads", "4,two"],
+    ["diagnose", "--reps", "0"],
+    ["advise", "--measure", "--threads-sweep", "1,-2"],
+    ["advise", "--threads", "0"],
+])
+def test_bad_numbers_are_usage_errors_not_tracebacks(argv, capsys):
+    """These used to surface as a ValueError traceback, a minute into a measurement, or
+    (membw --membw-reps 0) as a 0.00 GB/s 'ceiling' the user was told to pass to run."""
+    with pytest.raises(SystemExit) as exc:
+        cli.build_parser().parse_args(argv)
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "Traceback" not in err
+    assert "error:" in err
+
+
+def test_thread_lists_are_sorted_and_deduplicated():
+    args = cli.build_parser().parse_args(["run", "--models", "x.gguf", "-t", "8, 1,4,8,"])
+    assert args.threads == [1, 4, 8]
+    args = cli.build_parser().parse_args(["advise", "--measure", "--threads-sweep", "2,1"])
+    assert args.threads_sweep == [1, 2]
+    args = cli.build_parser().parse_args(["diagnose", "-t", "6"])
+    assert args.threads == [6]
+
+
+@pytest.mark.parametrize("payload", ["[1, 2]", '"text"', "{}", '{"analysis": null}'])
+def test_report_rejects_a_json_that_is_not_results(tmp_path, capsys, payload):
+    """A list raised AttributeError; an empty object printed a blank report card and
+    exited 0, as if there had been something to report."""
+    path = tmp_path / "other.json"
+    path.write_text(payload)
+    assert cli.main(["report", str(path)]) == 2
+    assert "not a llama-roofline results file" in capsys.readouterr().err
