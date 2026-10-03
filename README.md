@@ -439,7 +439,7 @@ If this tool is useful in something you publish or post, please cite it. See
 > v0.2.1, 2026. doi:[10.5281/zenodo.21842493](https://doi.org/10.5281/zenodo.21842493)
 
 `10.5281/zenodo.21842493` is the concept DOI and always resolves to the newest version.
-Each release also has its own version DOI; v0.2.0 is `10.5281/zenodo.22131998`.
+To cite this exact release, use `10.5281/zenodo.23127710`.
 
 The methodology comes from a study of LLM inference on a 2 GB Raspberry Pi 5 and an x86
 laptop, currently under review; the reproducibility artifact for that work is at
