@@ -6,6 +6,7 @@ authors:
   - given-names: "Manu Nicholas"
     family-names: "Jacob"
     orcid: "https://orcid.org/0009-0007-6589-6572"
+    affiliation: "Independent Researcher"
 repository-code: "https://github.com/manunicholasjacob/llama-roofline"
 url: "https://github.com/manunicholasjacob/llama-roofline"
 doi: "10.5281/zenodo.21842493"
