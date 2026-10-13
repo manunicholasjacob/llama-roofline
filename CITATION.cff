@@ -36,8 +36,8 @@ keywords:
   - quantization
   - edge inference
 license: MIT
-version: 0.2.2
-date-released: "2026-10-12"
+version: 0.2.3
+date-released: "2026-10-13"
 references:
   - type: software
     title: "llama.cpp"

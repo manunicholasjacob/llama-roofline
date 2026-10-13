@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "llama-roofline"
-version = "0.2.2"
+version = "0.2.3"
 description = "Is your llama.cpp decode memory-bandwidth-bound? Measure it, in one command."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -49,7 +49,8 @@ dev = ["pytest>=7"]
 Homepage = "https://github.com/manunicholasjacob/llama-roofline"
 Issues = "https://github.com/manunicholasjacob/llama-roofline/issues"
 Changelog = "https://github.com/manunicholasjacob/llama-roofline/blob/main/CHANGELOG.md"
-Documentation = "https://github.com/manunicholasjacob/llama-roofline/blob/main/docs/METHOD.md"
+Documentation = "https://manunicholasjacob.com/llama-roofline/"
+"GGUF Inspector" = "https://manunicholasjacob.com/llama-roofline/inspector.html"
 "Results gallery" = "https://github.com/manunicholasjacob/llama-roofline/issues?q=label%3Aresults"
 "Write-up" = "https://manunicholasjacob.com/writing/decode-is-memory-bound/"
 

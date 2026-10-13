@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-10-13
+
 ### Added
 - `inspect` reads models it does not have locally: `hf:OWNER/REPO[@REV]/FILE.gguf`, a
   Hugging Face `blob/` or `resolve/` link, or any https URL whose server honours HTTP

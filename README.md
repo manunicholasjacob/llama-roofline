@@ -33,7 +33,7 @@ memory can actually sustain, benchmarks across a thread sweep, and prints this:
 
 ```
 ========================================================================
-  llama-roofline v0.2.2  --  diagnosis
+  llama-roofline v0.2.3  --  diagnosis
 ========================================================================
   Machine   : 12th Gen Intel(R) Core(TM) i7-12700H
               20 logical / 14 physical cores, 34.0 GB RAM, Windows AMD64
@@ -451,7 +451,7 @@ If this tool is useful in something you publish or post, please cite it. See
 [`CITATION.cff`](CITATION.cff), or:
 
 > M. N. Jacob, *llama-roofline: a portable memory-bandwidth roofline for llama.cpp*,
-> v0.2.2, 2026. doi:[10.5281/zenodo.21842493](https://doi.org/10.5281/zenodo.21842493)
+> v0.2.3, 2026. doi:[10.5281/zenodo.21842493](https://doi.org/10.5281/zenodo.21842493)
 
 ```bibtex
 @software{jacob_llama_roofline,
