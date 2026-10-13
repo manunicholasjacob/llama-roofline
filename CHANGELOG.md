@@ -6,6 +6,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `inspect` reads models it does not have locally: `hf:OWNER/REPO[@REV]/FILE.gguf`, a
+  Hugging Face `blob/` or `resolve/` link, or any https URL whose server honours HTTP
+  range requests. Only the header is fetched (8.4 MB of the 491 MB Qwen2.5-0.5B Q4_K_M
+  file), in 4 MB blocks with two retries. `HF_TOKEN` is used for gated repositories and is
+  sent to huggingface.co only. A missing file prints the repository's file list URL; a
+  401 or 403 says the repository is gated; a server that ignores ranges is refused rather
+  than downloaded.
+- `inspect --json` prints the summary as data, and `inspect --peak-bw GBS` adds the decode
+  ceiling the file implies at that bandwidth.
+- GGUF types: NVFP4, Q1_0 and Q2_0 (current llama.cpp), and the Arm-repacked
+  Q4_0_4_4, Q4_0_4_8 and Q4_0_8_8 that late-2024 builds wrote and that are still on the
+  Hub. Each layout except Q2_0 was checked against the tensor offsets of a real file.
+- A tensor of a type newer than this release is sized from the tensor offsets, exact to
+  within the alignment padding, and the report says so, instead of the per-token figure
+  going missing.
+- `llama_roofline.inspection`: the summary and text report of `inspect`, standard
+  library only, so the browser inspector runs the same code as the CLI.
+
+### Changed
+- Errors for files that are not GGUF say what the file is: safetensors, a zip
+  checkpoint, pre-GGUF GGML, a saved Hugging Face web page, a Git LFS pointer, an empty
+  file, GGUF version 1, or a version newer than the tool. A file cut off inside its
+  header says it looks like an incomplete download.
+
+### Fixed
+- `inspect` on the first part of a split model read that part only. It now reads every
+  part, and says which part is missing if one is.
+
 ## [0.2.2] - 2026-10-12
 
 ### Added

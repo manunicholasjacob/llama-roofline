@@ -36,7 +36,10 @@ FTYPE_NAMES = {
     16: "Q5_K_S", 17: "Q5_K_M", 18: "Q6_K", 19: "IQ2_XXS", 20: "IQ2_XS", 21: "Q2_K_S",
     22: "IQ3_XS", 23: "IQ3_XXS", 24: "IQ1_S", 25: "IQ4_NL", 26: "IQ3_S", 27: "IQ3_M",
     28: "IQ2_S", 29: "IQ2_M", 30: "IQ4_XS", 31: "IQ1_M", 32: "BF16",
-    36: "TQ1_0", 37: "TQ2_0", 38: "MXFP4_MOE",
+    # 33 to 35 were the Arm-repacked Q4_0 variants, written by llama.cpp builds of late
+    # 2024 and still found in files on the Hub; current llama.cpp repacks at load time.
+    33: "Q4_0_4_4", 34: "Q4_0_4_8", 35: "Q4_0_8_8",
+    36: "TQ1_0", 37: "TQ2_0", 38: "MXFP4_MOE", 39: "NVFP4", 40: "Q1_0", 41: "Q2_0",
 }
 
 # Fallback: pull a quant label out of the filename when metadata is unavailable.
@@ -50,10 +53,35 @@ class GGUFError(Exception):
     """Raised when a file is not parseable as GGUF."""
 
 
+def _not_gguf_message(head: bytes) -> str:
+    """Say what a file that is not GGUF probably is, so the fix is obvious."""
+    if head[:1] == b"{" or (len(head) >= 9 and head[8:9] == b"{"):
+        # safetensors: an 8-byte little-endian header length, then a JSON header.
+        return ("not a GGUF file: this looks like safetensors. Convert it with llama.cpp's "
+                "convert_hf_to_gguf.py, or download the GGUF build of the model")
+    if head[:2] == b"PK":
+        return "not a GGUF file: this is a zip archive (a PyTorch checkpoint?)"
+    if head[:4] in (b"ggml", b"ggmf", b"ggjt", b"lmgg", b"fmgg", b"tjgg"):
+        return ("not a GGUF file: this is the pre-GGUF GGML format, which llama.cpp "
+                "dropped in August 2023. Re-convert the model from its original weights")
+    if head[:15].lower().startswith((b"<!doctype", b"<html")):
+        return ("not a GGUF file: this is a web page. A browser download of a Hugging Face "
+                "'blob' link saves the page; use the 'resolve' link instead")
+    if head[:24].startswith(b"version https://git-lfs"):
+        return ("not a GGUF file: this is a Git LFS pointer, not the model. Run "
+                "`git lfs pull`, or download the file itself")
+    return f"not a GGUF file (it starts with {head[:4]!r}, not b'GGUF')"
+
+
+class GGUFTruncated(GGUFError):
+    """The data ended inside the header: an incomplete download, or a short read."""
+
+
 def _read(f, n: int) -> bytes:
     b = f.read(n)
     if len(b) != n:
-        raise GGUFError("unexpected end of file")
+        raise GGUFTruncated("the file ends inside its own header (an incomplete "
+                            "download?)")
     return b
 
 
@@ -98,11 +126,19 @@ def read_metadata(path: str, max_kv: int = 4096) -> Dict[str, Any]:
 
 def _read_header(f, max_kv: int = 4096):
     """Read magic, counts and the key/value block. Leaves f at the tensor table."""
-    if _read(f, 4) != MAGIC:
-        raise GGUFError("not a GGUF file (bad magic)")
+    head = f.read(24)
+    if head[:4] != MAGIC:
+        if not head:
+            raise GGUFError("not a GGUF file: it is empty")
+        raise GGUFError(_not_gguf_message(head))
+    f.seek(-(len(head) - 4), os.SEEK_CUR)
     (version,) = struct.unpack("<I", _read(f, 4))
+    if version == 1:
+        raise GGUFError("GGUF version 1 (written before October 2023) is not supported; "
+                        "re-convert the model with a current llama.cpp")
     if version not in (2, 3):
-        raise GGUFError(f"unsupported GGUF version {version}")
+        raise GGUFError(f"unsupported GGUF version {version}. It may be newer than this "
+                        "copy of llama-roofline: try `pip install -U llama-roofline`")
     (n_tensors,) = struct.unpack("<Q", _read(f, 8))
     (n_kv,) = struct.unpack("<Q", _read(f, 8))
     if n_kv > max_kv:
@@ -133,8 +169,35 @@ GGML_TYPES = {
     22: ("IQ2_S", 256, 82), 23: ("IQ4_XS", 256, 136),
     24: ("I8", 1, 1), 25: ("I16", 1, 2), 26: ("I32", 1, 4), 27: ("I64", 1, 8),
     28: ("F64", 1, 8), 29: ("IQ1_M", 256, 56), 30: ("BF16", 1, 2),
+    # The Arm-repacked Q4_0 variants: the same 32-element, 18-byte blocks as Q4_0, stored
+    # interleaved. llama.cpp stopped writing them in December 2024 but files remain.
+    31: ("Q4_0_4_4", 32, 18), 32: ("Q4_0_4_8", 32, 18), 33: ("Q4_0_8_8", 32, 18),
     34: ("TQ1_0", 256, 54), 35: ("TQ2_0", 256, 66), 39: ("MXFP4", 32, 17),
+    # NVFP4: 64 elements as 4 sub-blocks of 16, four E4M3 scale bytes and 32 bytes of
+    # packed 4-bit values. Q1_0 and Q2_0: one fp16 scale per block of 128 and 64.
+    40: ("NVFP4", 64, 36), 41: ("Q1_0", 128, 18), 42: ("Q2_0", 64, 18),
 }
+
+# Type ids that ggml has defined but whose block layout this table does not carry. They
+# get a name, and stay unsized, so the report can say what it could not count.
+GGML_TYPE_NAMES_UNSIZED = {36: "IQ4_NL_4_4", 37: "IQ4_NL_4_8", 38: "IQ4_NL_8_8"}
+
+
+def type_name(tid: int) -> str:
+    """The ggml name of a type id, or ``type<N>`` for an id this table does not know."""
+    info = GGML_TYPES.get(tid)
+    if info:
+        return info[0]
+    return GGML_TYPE_NAMES_UNSIZED.get(tid, f"type{tid}")
+
+
+def unsized_types(tensors: List[Dict[str, Any]]) -> List[str]:
+    """Names of the types whose tensors could not be sized, most common first."""
+    counts: Dict[str, int] = {}
+    for t in tensors:
+        if t["bytes"] is None:
+            counts[t["type"]] = counts.get(t["type"], 0) + 1
+    return [k for k, _ in sorted(counts.items(), key=lambda kv: -kv[1])]
 
 
 def read_tensors(path: str, max_tensors: int = 100000) -> List[Dict[str, Any]]:
@@ -145,32 +208,82 @@ def read_tensors(path: str, max_tensors: int = 100000) -> List[Dict[str, Any]]:
     can hold different types per tensor depending on what they were quantized from.
     """
     with open(path, "rb") as f:
-        _, n_tensors = _read_header(f)
-        if n_tensors > max_tensors:
-            raise GGUFError(f"implausible tensor count {n_tensors}")
-        out: List[Dict[str, Any]] = []
-        for _ in range(n_tensors):
-            name = _read_string(f)
-            (n_dims,) = struct.unpack("<I", _read(f, 4))
-            if n_dims > 8:
-                raise GGUFError(f"implausible tensor rank {n_dims}")
-            dims = list(struct.unpack(f"<{n_dims}Q", _read(f, 8 * n_dims)))
-            (tid,) = struct.unpack("<I", _read(f, 4))
-            (offset,) = struct.unpack("<Q", _read(f, 8))
-            elements = 1
-            for d in dims:
-                elements *= d
-            info = GGML_TYPES.get(tid)
-            nbytes = None
-            if info and elements % info[1] == 0:
-                nbytes = elements // info[1] * info[2]
-            out.append({
-                "name": name, "type_id": tid,
-                "type": info[0] if info else f"type{tid}",
-                "dims": dims, "elements": elements,
-                "bytes": nbytes, "offset": offset,
-            })
-        return out
+        return read_gguf(f, max_tensors=max_tensors)[1]
+
+
+def read_gguf(f, max_kv: int = 4096, max_tensors: int = 100000):
+    """Metadata and tensor table from any seekable binary file object.
+
+    Only the header is read, never the weights, so the object can be a local file, a
+    ``BytesIO`` holding the first few MB of one, or a reader over HTTP range requests.
+    Returns ``(metadata, tensors)``.
+    """
+    kv, n_tensors = _read_header(f, max_kv)
+    if n_tensors > max_tensors:
+        raise GGUFError(f"implausible tensor count {n_tensors}")
+    out: List[Dict[str, Any]] = []
+    for _ in range(n_tensors):
+        name = _read_string(f)
+        (n_dims,) = struct.unpack("<I", _read(f, 4))
+        if n_dims > 8:
+            raise GGUFError(f"implausible tensor rank {n_dims}")
+        dims = list(struct.unpack(f"<{n_dims}Q", _read(f, 8 * n_dims)))
+        (tid,) = struct.unpack("<I", _read(f, 4))
+        (offset,) = struct.unpack("<Q", _read(f, 8))
+        elements = 1
+        for d in dims:
+            elements *= d
+        info = GGML_TYPES.get(tid)
+        nbytes = None
+        if info and elements % info[1] == 0:
+            nbytes = elements // info[1] * info[2]
+        out.append({
+            "name": name, "type_id": tid,
+            "type": type_name(tid),
+            "dims": dims, "elements": elements,
+            "bytes": nbytes, "offset": offset,
+        })
+    # Tensor data starts at the next multiple of the alignment after the table.
+    align = kv.get("general.alignment")
+    align = align if isinstance(align, int) and align > 0 else 32
+    kv["_alignment"] = align
+    kv["_data_start"] = -(-f.tell() // align) * align
+    return kv, out
+
+
+def size_from_offsets(tensors: List[Dict[str, Any]], data_bytes: Optional[int],
+                      alignment: int = 32) -> List[str]:
+    """Size the tensors the type table cannot, from where the next tensor starts.
+
+    Tensors are stored back to back, each padded to the alignment, so the distance from
+    one tensor's offset to the next is its size plus under ``alignment`` bytes of
+    padding. That makes a type llama.cpp added after this release countable, to within
+    the padding, without knowing its block layout. The last tensor runs to the end of
+    the data section, which needs ``data_bytes`` (file size minus the data start).
+
+    Fills ``bytes`` in place, marks those tensors ``bytes_from_offsets``, and returns
+    the names of the types it sized this way. A gap that is negative or that would
+    disagree with a tensor of known size is left alone.
+    """
+    order = sorted(range(len(tensors)), key=lambda i: tensors[i]["offset"])
+    estimated: Dict[str, int] = {}
+    for pos, i in enumerate(order):
+        t = tensors[i]
+        if t["bytes"] is not None:
+            continue
+        if pos + 1 < len(order):
+            end = tensors[order[pos + 1]]["offset"]
+        elif data_bytes is not None:
+            end = data_bytes
+        else:
+            continue
+        gap = end - t["offset"]
+        if gap <= 0:
+            continue
+        t["bytes"] = gap
+        t["bytes_from_offsets"] = True
+        estimated[t["type"]] = estimated.get(t["type"], 0) + 1
+    return [k for k, _ in sorted(estimated.items(), key=lambda kv: -kv[1])]
 
 
 # Tensors read once per token during generation: every repeating block, the final norm,
@@ -278,14 +391,9 @@ def _quant_from_name(path: str) -> Optional[str]:
     return m.group(1).upper() if m else None
 
 
-def describe(path: str) -> Dict[str, Any]:
-    """Best-effort description of a GGUF file. Never raises.
-
-    Keys: path, name, file_bytes, arch, quant, n_params, n_expert, n_expert_used,
-    context_length, is_moe, metadata_ok, metadata_error.
-    """
-    info: Dict[str, Any] = {
-        "path": os.path.abspath(path),
+def _blank_description(path: str) -> Dict[str, Any]:
+    return {
+        "path": path,
         "name": os.path.splitext(os.path.basename(path))[0],
         "file_bytes": None,
         "arch": None,
@@ -298,18 +406,16 @@ def describe(path: str) -> Dict[str, Any]:
         "metadata_ok": False,
         "metadata_error": None,
     }
-    try:
-        info["file_bytes"] = os.path.getsize(path)
-    except OSError as exc:
-        info["metadata_error"] = str(exc)
-        return info
 
-    try:
-        kv = read_metadata(path)
-    except (GGUFError, OSError, struct.error) as exc:
-        info["metadata_error"] = str(exc)
-        return info
 
+def describe_metadata(kv: Dict[str, Any], path: str,
+                      file_bytes: Optional[int] = None) -> Dict[str, Any]:
+    """The same description as ``describe``, from a metadata block already read.
+
+    ``path`` is used for the fallback name and quant label only, so it can be a URL.
+    """
+    info = _blank_description(path)
+    info["file_bytes"] = file_bytes
     info["metadata_ok"] = True
     arch = kv.get("general.architecture")
     if isinstance(arch, str):
@@ -337,3 +443,27 @@ def describe(path: str) -> Dict[str, Any]:
 
     info["is_moe"] = bool(info.get("n_expert"))
     return info
+
+
+def describe(path: str) -> Dict[str, Any]:
+    """Best-effort description of a GGUF file. Never raises.
+
+    Keys: path, name, file_bytes, arch, quant, n_params, n_expert, n_expert_used,
+    context_length, is_moe, metadata_ok, metadata_error.
+    """
+    info = _blank_description(os.path.abspath(path))
+    try:
+        info["file_bytes"] = os.path.getsize(path)
+    except OSError as exc:
+        info["metadata_error"] = str(exc)
+        return info
+
+    try:
+        kv = read_metadata(path)
+    except (GGUFError, OSError, struct.error) as exc:
+        info["metadata_error"] = str(exc)
+        return info
+
+    out = describe_metadata(kv, path, info["file_bytes"])
+    out["path"] = info["path"]
+    return out

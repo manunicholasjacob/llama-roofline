@@ -107,6 +107,23 @@ reads per token, and how much of that is the output head. Divide your memory ban
 that per-token figure and you have the ceiling on your generation speed before you run
 anything.
 
+### Check a model before you download it
+
+`inspect` also reads a file on the Hugging Face Hub, or on any server that honours HTTP
+range requests, without downloading the weights. Only the header is fetched, usually a few
+MB of a file that may be tens of GB:
+
+```bash
+llama-roofline inspect hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF/qwen2.5-0.5b-instruct-q4_k_m.gguf
+llama-roofline inspect hf:OWNER/REPO@REVISION/FILE.gguf      # a branch, tag or commit
+llama-roofline inspect https://huggingface.co/OWNER/REPO/blob/main/FILE.gguf
+llama-roofline inspect hf:OWNER/REPO/FILE.gguf --peak-bw 50  # and the speed ceiling at 50 GB/s
+```
+
+A split model (`...-00001-of-00003.gguf`) is read part by part, locally or remotely, so
+the figures cover the whole model. For a gated or private repository set `HF_TOKEN`; it is
+sent to huggingface.co only. `--json` prints the same summary as data.
+
 ## Which quantization should you run?
 
 `advise` answers "which quantization format should I run on this CPU?" from measurements,
@@ -247,6 +264,7 @@ llama-roofline advise --plan ~/models/qwen-f16.gguf             # build a set wo
 # what a GGUF file actually contains
 llama-roofline inspect ~/models/model.gguf
 llama-roofline inspect ~/models/model.gguf --tensors
+llama-roofline inspect hf:OWNER/REPO/FILE.gguf --json     # remote: header only
 
 # the full sweep: every model, the fit, the figure
 llama-roofline run --models ~/models/*.gguf

@@ -15,10 +15,11 @@ import re
 import struct
 import sys
 import time
+import urllib.parse
 from typing import Any, Dict, List, Optional
 
-from . import (SCHEMA_VERSION, __version__, advisor, bench, gguf, membw, report,
-               roofline, silicon, sysinfo)
+from . import (SCHEMA_VERSION, __version__, advisor, bench, gguf, inspection, membw,
+               remote, report, roofline, silicon, sysinfo)
 
 SHARD_RE = re.compile(r"^(?P<stem>.+)-(?P<idx>\d{5})-of-(?P<total>\d{5})\.gguf$", re.IGNORECASE)
 
@@ -675,112 +676,114 @@ def cmd_diagnose(args: argparse.Namespace) -> int:
 
 # --------------------------------------------------------------------------- inspect
 
+class InspectError(Exception):
+    """A model that could not be inspected, with the message to print."""
+
+
+def _shard_names(name: str) -> Optional[List[str]]:
+    """Every part's file name for the first part of a split model, else None."""
+    m = SHARD_RE.match(name)
+    if not m:
+        return None
+    stem, n = m.group("stem"), int(m.group("total"))
+    return [f"{stem}-{i:05d}-of-{n:05d}.gguf" for i in range(1, n + 1)]
+
+
+def _read_local(path: str) -> List[inspection.Part]:
+    """The parsed header of a local file, or of every part of a split model.
+
+    Each part of a split model carries its own tensor table, so the first part alone
+    would describe a fraction of the model.
+    """
+    shards = _shard_names(os.path.basename(path))
+    paths = ([os.path.join(os.path.dirname(path), s) for s in shards] if shards
+             else [path])
+    parts: List[inspection.Part] = []
+    for i, sp in enumerate(paths):
+        if not os.path.isfile(sp):
+            raise InspectError(f"error: {os.path.basename(path)} is part 1 of a split model "
+                               f"and part {i + 1} is missing: {sp}")
+        try:
+            with open(sp, "rb") as f:
+                kv, tensors = gguf.read_gguf(f)
+        except (gguf.GGUFError, OSError, struct.error) as exc:
+            raise InspectError(f"error: could not read the tensor table of {sp}: {exc}")
+        parts.append((kv, tensors, os.path.getsize(sp)))
+    return parts
+
+
+def _read_remote(ref: str):
+    """(parts, display name, header bytes fetched) for a URL or hf: reference."""
+    try:
+        url, name = remote.resolve(ref)
+    except remote.RemoteError as exc:
+        raise InspectError(f"error: {exc}")
+    shards = _shard_names(os.path.basename(urllib.parse.urlparse(url).path))
+    if shards:
+        base = url.rsplit("/", 1)[0]
+        urls = [f"{base}/{urllib.parse.quote(s)}" for s in shards]
+    else:
+        urls = [url]
+    token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+    parts: List[inspection.Part] = []
+    fetched = 0
+    for u in urls:
+        reader = remote.RangeReader(u, token=token)
+        try:
+            kv, tensors = gguf.read_gguf(reader)
+        except remote.RemoteError as exc:
+            raise InspectError(f"error: {exc}")
+        except (gguf.GGUFError, struct.error) as exc:
+            raise InspectError(f"error: {u}: {exc}")
+        finally:
+            fetched += reader.bytes_fetched
+        parts.append((kv, tensors, reader.size))
+    return parts, name, fetched
+
+
+def inspect_model(source: str) -> Dict[str, Any]:
+    """Everything ``inspect`` reports about one model, as data. Raises InspectError."""
+    if remote.is_remote(source):
+        parts, name, fetched = _read_remote(source)
+        return inspection.summarize(parts, name, source, fetched)
+    if not os.path.isfile(source):
+        raise InspectError(_not_a_file(source))
+    name = OLLAMA_NAMES.get(source, os.path.basename(source))
+    return inspection.summarize(_read_local(source), name, source)
+
+
 def cmd_inspect(args: argparse.Namespace) -> int:
     """Show what is actually inside a GGUF file, since the filename does not say."""
-    paths = expand_model_args(args.models)
-    if not paths:
+    local = [m for m in args.models if not remote.is_remote(m)]
+    sources = expand_model_args(local) if local else []
+    sources += [m for m in args.models if remote.is_remote(m)]
+    if not sources:
         # A directory or glob that matched nothing would otherwise exit 0 with no output,
         # which reads as "there is nothing interesting in there" rather than as a typo.
         _eprint("error: nothing to inspect. "
                 + ", ".join(args.models) + " matched no .gguf files.")
         return 2
     rc = 0
-    for path in paths:
-        if not os.path.isfile(path):
-            _eprint(_not_a_file(path))
-            rc = 2
-            continue
+    results: List[Dict[str, Any]] = []
+    for source in sources:
         try:
-            tensors = gguf.read_tensors(path)
-        except (gguf.GGUFError, OSError, struct.error) as exc:
-            _eprint(f"error: could not read the tensor table of {path}: {exc}")
+            r = inspect_model(source)
+        except InspectError as exc:
+            _eprint(str(exc))
             rc = 2
             continue
-        desc = gguf.describe(path)
-        stream = gguf.streamed_bytes(tensors)
-        size = os.path.getsize(path)
-
-        print(report.RULE)
-        print(f"  {OLLAMA_NAMES.get(path, os.path.basename(path))}")
-        print(report.RULE)
-        comp = gguf.composition(tensors, desc.get("quant"))
-        print(f"  label      : {desc.get('quant') or 'unknown'}"
-              + (f"   architecture: {desc['arch']}" if desc.get("arch") else ""))
-        # The headline. A label is a recipe, and the recipe substitutes silently, so the
-        # first thing worth knowing about a file is how much of it is what it says.
-        if comp and comp.get("on_label_pct") is not None:
-            print(f"  actually   : {comp['on_label_pct']:.0f}% {comp['expected_type']} "
-                  f"in the repeating layers, {comp['bits_per_weight']:.2f} bits per weight")
-        print(f"  file       : {size / 1e6:.0f} MB, {len(tensors)} tensors")
-        if stream:
-            print(f"  per token  : {stream['streamed_bytes'] / 1e6:.0f} MB read "
-                  f"({100 * stream['streamed_bytes'] / stream['total_bytes']:.0f}% of the "
-                  f"file)")
-            print(f"  output head: {stream['head_bytes'] / 1e6:.0f} MB, "
-                  f"{stream['head_share_pct']:.0f}% of what is read per token"
-                  + ("   (tied to the embedding)" if stream["tied_embedding"] else ""))
+        if args.json:
+            if not args.tensors:
+                r = {k: v for k, v in r.items() if k != "tensors"}
+            if args.peak_bw and r["streamed_bytes"]:
+                r["peak_bw_GBs"] = args.peak_bw
+                r["ceiling_tok_s"] = args.peak_bw * 1e9 / r["streamed_bytes"]
+            results.append(r)
         else:
-            print("  per token  : not computable, at least one tensor uses a ggml type "
-                  "this build does not know")
-        print()
-        print("  TENSOR TYPES")
-        print(report.THIN)
-        by_type: Dict[str, Dict[str, Any]] = {}
-        for t in tensors:
-            slot = by_type.setdefault(t["type"], {"n": 0, "bytes": 0})
-            slot["n"] += 1
-            slot["bytes"] += t["bytes"] or 0
-        rows = sorted(by_type.items(), key=lambda kv: -kv[1]["bytes"])
-        print(f"    {'type':<10}{'tensors':>9}{'MB':>10}{'share':>8}")
-        for name, slot in rows:
-            share = 100.0 * slot["bytes"] / size if size else 0
-            print(f"    {name:<10}{slot['n']:>9}{slot['bytes'] / 1e6:>10.0f}{share:>7.0f}%")
-        print()
-
-        if comp and comp.get("on_label_pct") is not None:
-            share = comp["on_label_pct"]
-            expected = comp["expected_type"]
-            ranked = [t for t in comp["by_type_pct"] if t != expected]
-            head_type = None
-            for t in tensors:
-                if t["name"].startswith("output.weight") or (
-                        stream and stream["tied_embedding"]
-                        and t["name"] == "token_embd.weight"):
-                    head_type = t["type"]
-                    break
-
-            print("  WHAT THE LABEL MEANS HERE")
-            print(report.THIN)
-            if share >= 90:
-                lead = (f"This file is what it says: {share:.0f}% of its repeating-layer "
-                        f"bytes are {expected}.")
-            elif share < 1:
-                lead = (f"This file contains no {expected} tensors at all. Its repeating "
-                        f"layers are "
-                        + ", ".join(f"{t} {comp['by_type_pct'][t]:.0f}%"
-                                    for t in ranked[:3]) + ".")
-            else:
-                lead = (f"Only {share:.0f}% of this file's repeating-layer bytes are "
-                        f"{expected}. " + ("Most of it is " if share < 50 else "The rest is ")
-                        + ", ".join(f"{t} {comp['by_type_pct'][t]:.0f}%"
-                                    for t in ranked[:3]) + ".")
-            text = (lead + (f" The output head is {head_type}." if head_type else "")
-                    + f" It stores {comp['bits_per_weight']:.2f} bits per weight."
-                    + " A GGUF label names a recipe rather than a type. llama-quantize"
-                      " substitutes per tensor when a shape does not divide by the block"
-                      " size. None of that is visible from the filename, and at small"
-                      " model sizes the substitution can take over the file.")
-            for line in report._wrap(text, 68):
-                print(f"  {line}")
-            print()
-        if args.tensors:
-            print("  EVERY TENSOR")
-            print(report.THIN)
-            for t in tensors:
-                dims = "x".join(str(d) for d in t["dims"])
-                print(f"    {t['name']:<40}{t['type']:<10}{dims:<20}"
-                      f"{(t['bytes'] or 0) / 1e6:>8.1f} MB")
-            print()
+            print(inspection.render_text(r, __version__, args.tensors, args.peak_bw))
+    if args.json:
+        print(json.dumps({"tool": "llama-roofline", "version": __version__,
+                          "command": "inspect", "models": results}, indent=2))
     return rc
 
 
@@ -944,6 +947,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  llama-roofline diagnose model.gguf      answer for one model\n"
             "  llama-roofline advise                   which quant to run on this core\n"
             "  llama-roofline inspect model.gguf       what is actually inside the file\n"
+            "  llama-roofline inspect hf:OWNER/REPO/FILE.gguf   the same, before downloading\n"
             "\n"
             "the longer path:\n"
             "  llama-roofline run --models ~/models/*.gguf\n"
@@ -1032,8 +1036,16 @@ def build_parser() -> argparse.ArgumentParser:
                     "same format label can hold different types and decode at very "
                     "different speeds; this is how you tell them apart.",
     )
-    i.add_argument("models", nargs="+", metavar="GGUF")
+    i.add_argument("models", nargs="+", metavar="GGUF",
+                   help="GGUF files, directories or globs; ollama:NAME[:TAG]; or "
+                        "hf:OWNER/REPO/FILE.gguf or an https URL, of which only the "
+                        "header is fetched (set HF_TOKEN for gated repositories)")
     i.add_argument("--tensors", action="store_true", help="list every tensor")
+    i.add_argument("--peak-bw", type=float, default=None, metavar="GBS",
+                   help="also print the decode ceiling this file implies at this memory "
+                        "bandwidth in GB/s (`llama-roofline membw` measures yours)")
+    i.add_argument("--json", action="store_true",
+                   help="print the result as JSON instead of the text report")
     i.set_defaults(func=cmd_inspect)
 
     r = sub.add_parser("run", help="benchmark models and produce the roofline report")
