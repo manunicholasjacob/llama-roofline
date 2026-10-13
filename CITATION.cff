@@ -37,7 +37,7 @@ keywords:
   - edge inference
 license: MIT
 version: 0.2.2
-date-released: "@@RELEASE_DATE@@"
+date-released: "2026-10-12"
 references:
   - type: software
     title: "llama.cpp"
