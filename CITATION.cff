@@ -15,8 +15,8 @@ identifiers:
     value: "10.5281/zenodo.21842493"
     description: "Concept DOI, always resolves to the latest version"
   - type: doi
-    value: "10.5281/zenodo.23127710"
-    description: "DOI for version v0.2.1"
+    value: "10.5281/zenodo.23329330"
+    description: "DOI for version v0.2.2"
 abstract: >-
   A command-line tool that measures whether llama.cpp token generation on a given
   machine is limited by memory bandwidth. It measures the machine's sustainable

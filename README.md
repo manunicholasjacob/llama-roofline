@@ -440,7 +440,7 @@ If this tool is useful in something you publish or post, please cite it. See
 ```
 
 `10.5281/zenodo.21842493` is the concept DOI and always resolves to the newest version.
-To cite this exact release, use `10.5281/zenodo.23127710`.
+To cite this exact release, use `10.5281/zenodo.23329330`.
 
 The methodology comes from a study of LLM inference on a 2 GB Raspberry Pi 5 and an x86
 laptop, currently under review; the reproducibility artifact for that work is at
