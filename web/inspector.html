@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="llama-roofline-version" content="{{VERSION}}">
+<title>GGUF Inspector</title>
+<meta name="description" content="What is really inside a GGUF file: real types under the format label, bits per weight, bytes read per token. Runs in your browser; nothing is uploaded.">
+<style>
+  :root { --bg:#ffffff; --fg:#1b1f24; --muted:#59636e; --line:#d0d7de; --panel:#f6f8fa;
+          --accent:#9a4a00; --err:#b42318; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0d1117; --fg:#e6edf3; --muted:#8b949e; --line:#30363d; --panel:#161b22;
+            --accent:#f0a340; --err:#ff7b72; }
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--bg); color:var(--fg); font:16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+         margin:0; padding:24px 16px 48px; }
+  main { max-width:820px; margin:0 auto; }
+  h1 { font-size:1.65rem; margin:0 0 6px; letter-spacing:-0.01em; }
+  p.lede { color:var(--muted); margin:0 0 22px; }
+  fieldset { border:1px solid var(--line); border-radius:8px; padding:14px 16px 16px; margin:0 0 14px; }
+  legend { font-weight:600; padding:0 6px; }
+  label { display:block; margin:0 0 6px; color:var(--muted); font-size:.92rem; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  input[type=text], input[type=number] { padding:8px 10px; background:var(--bg); color:var(--fg);
+         border:1px solid var(--line); border-radius:6px; font:inherit; }
+  input[type=text] { flex:1 1 320px; min-width:0; }
+  input[type=number] { width:8.5em; }
+  button { padding:8px 14px; border-radius:6px; border:1px solid var(--accent); background:var(--accent);
+           color:var(--bg); font:inherit; font-weight:600; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--accent); }
+  button:disabled { opacity:.5; cursor:default; }
+  .opts { display:flex; gap:18px; flex-wrap:wrap; align-items:center; margin:4px 0 14px; }
+  .opts label { display:inline; margin:0 0 0 4px; color:var(--fg); }
+  pre { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px; overflow-x:auto;
+        font:13px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; min-height:4em; white-space:pre; }
+  pre.err { color:var(--err); white-space:pre-wrap; }
+  .note { color:var(--muted); font-size:.9rem; }
+  .examples a { margin-right:12px; }
+  a { color:var(--accent); }
+  code { font:0.9em ui-monospace, Consolas, monospace; }
+  nav.top { font-size:.92rem; margin:0 0 18px; }
+  nav.top a { margin-right:14px; }
+</style>
+</head>
+<body>
+<main>
+  <!--NAV-->
+  <h1>What is actually inside your GGUF?</h1>
+  <p class="lede">A format label names a recipe, not a type. This reads the header of a GGUF model and
+  shows what it really holds: the types under the label, bits per weight, and the bytes decode reads
+  per token. It runs in your browser. Only the header is read; nothing is uploaded.</p>
+
+  <fieldset>
+    <legend>A file on your computer</legend>
+    <label for="f">Pick a .gguf file. For a split model, select every part.</label>
+    <input id="f" type="file" accept=".gguf" multiple>
+  </fieldset>
+
+  <fieldset>
+    <legend>Or a file on the Hugging Face Hub</legend>
+    <label for="ref">hf:OWNER/REPO/FILE.gguf, or a huggingface.co link to the file</label>
+    <div class="row">
+      <input id="ref" type="text" spellcheck="false" autocomplete="off"
+             placeholder="hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF/qwen2.5-0.5b-instruct-q4_k_m.gguf">
+      <button id="go" type="button">Inspect</button>
+    </div>
+    <p class="note examples">Try:
+      <a href="#" data-ref="hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF/qwen2.5-0.5b-instruct-q4_k_m.gguf">Qwen2.5 0.5B Q4_K_M</a>
+      <a href="#" data-ref="hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF/qwen2.5-0.5b-instruct-q8_0.gguf">Qwen2.5 0.5B Q8_0</a>
+      <a href="#" data-ref="hf:Qwen/Qwen2.5-7B-Instruct-GGUF/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf">Qwen2.5 7B Q4_K_M (split)</a>
+    </p>
+  </fieldset>
+
+  <div class="opts">
+    <span><label for="bw" style="margin:0 6px 0 0;color:var(--muted)">Memory bandwidth, GB/s (optional)</label>
+      <input id="bw" type="number" min="0" step="0.1" placeholder="e.g. 50"></span>
+    <span><input id="tensors" type="checkbox"><label for="tensors">list every tensor</label></span>
+    <button id="copy" class="ghost" type="button" disabled>Copy report</button>
+  </div>
+
+  <pre id="out">Loading the Python runtime (a few seconds on the first visit)...</pre>
+
+  <p class="note">With a bandwidth, the report adds the ceiling: bandwidth divided by the bytes read per
+  token. Real decode lands below it. To measure your own machine's bandwidth and decode speed:
+  <code>pip install llama-roofline</code>, then <code>llama-roofline diagnose</code>. The same report is
+  <code>llama-roofline inspect FILE</code> on the command line, which also reads gated repositories
+  with <code>HF_TOKEN</code>.</p>
+  <p class="note">This page runs the <code>inspect</code> code of
+  <a href="https://github.com/manunicholasjacob/llama-roofline">llama-roofline</a> {{VERSION}} unchanged,
+  in <a href="https://pyodide.org/">Pyodide</a>. MIT licensed. Cite as
+  <a href="https://doi.org/10.5281/zenodo.21842493">doi:10.5281/zenodo.21842493</a>.
+  The Hub's own file viewer lists tensor types too; what this adds is the on-label share, the bits per
+  weight, the bytes read per token with the embedding excluded and a tied head counted, and the ceiling.</p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+"use strict";
+const VERSION = document.querySelector('meta[name="llama-roofline-version"]').content;
+const HF = "huggingface.co";
+const BLOCK = 4 << 20;                 // the CLI's block size
+const MAX_HEADER = 512 << 20;          // the CLI's give-up point
+const SHARD = /^(.+)-(\d{5})-of-(\d{5})\.gguf$/i;
+const out = document.getElementById("out");
+const copyBtn = document.getElementById("copy");
+let py = null, busy = false, last = null;
+
+const HELPER = `
+import io, sys
+sys.path.insert(0, "/home/pyodide")
+import gguf, inspection
+_parts = []
+def reset():
+    _parts.clear()
+def add_part(buf, size):
+    try:
+        kv, tensors = gguf.read_gguf(io.BytesIO(buf.to_py()))
+    except gguf.GGUFTruncated:
+        return "more"
+    except gguf.GGUFError as exc:
+        return "error: " + str(exc)
+    _parts.append((kv, tensors, size))
+    return "ok"
+def report(name, source, fetched, peak_bw, show):
+    r = inspection.summarize(_parts, name, source, fetched if fetched else None)
+    return inspection.render_text(r, VERSION, bool(show), peak_bw if peak_bw else None)
+`;
+
+function show(text, isErr) {
+  out.textContent = text;
+  out.className = isErr ? "err" : "";
+  copyBtn.disabled = isErr || !text;
+}
+
+async function boot() {
+  py = await loadPyodide();
+  for (const name of ["gguf.py", "inspection.py"]) {
+    const resp = await fetch(name);
+    if (!resp.ok) throw new Error("could not load " + name);
+    py.FS.writeFile("/home/pyodide/" + name, await resp.text());
+  }
+  py.globals.set("VERSION", VERSION);
+  py.runPython(HELPER);
+  show("Ready. Pick a file, or enter a Hub reference.");
+  const q = new URLSearchParams(location.search).get("model");
+  if (q) { document.getElementById("ref").value = q; inspectRemote(q); }
+}
+
+// ---------------------------------------------------------------- local files
+async function parseLocal(file) {
+  // Header sizes vary with the vocabulary and the tensor count: grow the slice until
+  // the parser stops running off its end.
+  for (let n = BLOCK; ; n *= 2) {
+    const buf = new Uint8Array(await file.slice(0, Math.min(n, file.size)).arrayBuffer());
+    const res = py.globals.get("add_part")(buf, file.size);
+    if (res !== "more") return res;
+    if (n >= file.size || n >= MAX_HEADER) return "error: the file ends inside its own header (an incomplete download?)";
+  }
+}
+
+async function inspectLocal(files) {
+  if (busy || !py) return;
+  busy = true;
+  try {
+    files = Array.from(files).sort((a, b) => a.name.localeCompare(b.name));
+    // One split model, if every file is a part of the same one; otherwise each file alone.
+    const m = files.map(f => SHARD.exec(f.name));
+    const groups = (files.length > 1 && m.every(x => x && x[1] === m[0][1] && x[3] === m[0][3]))
+      ? [files] : files.map(f => [f]);
+    const reports = [];
+    for (const group of groups) {
+      const sm = SHARD.exec(group[0].name);
+      if (sm && group.length !== parseInt(sm[3], 10)) {
+        reports.push(`error: ${group[0].name} is one part of a split model with ${parseInt(sm[3], 10)} parts. ` +
+                     "Select every part together.");
+        continue;
+      }
+      show(`Reading the header of ${group[0].name}...`);
+      py.globals.get("reset")();
+      let err = null;
+      for (const f of group) {
+        const res = await parseLocal(f);
+        if (res !== "ok") { err = res.replace(/^error: /, `error: ${f.name}: `); break; }
+      }
+      reports.push(err || py.globals.get("report")(group[0].name, group[0].name, 0, bandwidth(),
+                                                    document.getElementById("tensors").checked));
+    }
+    last = { kind: "local", files };
+    const text = reports.join("\n\n");
+    show(text, reports.every(r => r.startsWith("error:")));
+  } catch (e) {
+    show("error: " + String(e).split("\n").slice(-2).join(" "), true);
+  } finally { busy = false; }
+}
+
+// ---------------------------------------------------------------- the Hub
+function resolve(ref) {
+  ref = ref.trim();
+  if (ref.startsWith("hf:")) {
+    const m = /^([^/@]+)\/([^/@]+)(?:@([^/]+))?\/(.+)$/.exec(ref.slice(3));
+    if (!m) throw new Error("expected hf:OWNER/REPO/FILE.gguf, for example " +
+                            "hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF/qwen2.5-0.5b-instruct-q4_k_m.gguf");
+    const path = m[4].split("/").map(encodeURIComponent).join("/");
+    return { url: `https://${HF}/${m[1]}/${m[2]}/resolve/${encodeURIComponent(m[3] || "main")}/${path}`, name: ref };
+  }
+  let u;
+  try { u = new URL(ref); } catch (_) { throw new Error("not a URL or hf: reference: " + ref); }
+  if (u.protocol !== "https:") throw new Error("only https links can be read from a web page");
+  let url = ref;
+  if (u.host === HF && u.pathname.includes("/blob/")) url = ref.replace("/blob/", "/resolve/");
+  return { url, name: decodeURIComponent(u.pathname.split("/").pop()) || ref };
+}
+
+function repoTree(url) {
+  const u = new URL(url);
+  const p = u.pathname.replace(/^\/+/, "").split("/");
+  return (u.host === HF && p.length >= 4 && p[2] === "resolve") ? `https://${HF}/${p[0]}/${p[1]}/tree/${p[3]}` : null;
+}
+
+async function fetchRange(url, lo, hi) {
+  let lastErr = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const ctl = new AbortController();
+    let resp;
+    try {
+      resp = await fetch(url, { headers: { Range: `bytes=${lo}-${hi}` }, signal: ctl.signal });
+    } catch (e) {
+      lastErr = new Error(`could not reach ${new URL(url).host} (${e.message}). The server may not allow ` +
+                          "reads from a web page; llama-roofline inspect on the command line has no such limit.");
+      await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+      continue;
+    }
+    if (resp.status === 206) {
+      const m = /\/(\d+)\s*$/.exec(resp.headers.get("Content-Range") || "");
+      return { data: new Uint8Array(await resp.arrayBuffer()), total: m ? parseInt(m[1], 10) : null };
+    }
+    ctl.abort();   // never download a whole model by accident
+    if (resp.status === 416) return { data: new Uint8Array(0), total: null };
+    if (resp.status >= 500 && attempt < 2) { await new Promise(r => setTimeout(r, 500 * (attempt + 1))); continue; }
+    if (resp.status === 401 || resp.status === 403)
+      throw new Error(`HTTP ${resp.status} for ${url}. This repository is gated or private. A web page cannot ` +
+                      "send your token; use llama-roofline inspect on the command line with HF_TOKEN set.");
+    if (resp.status === 404) {
+      const t = repoTree(url);
+      throw new Error(`HTTP 404: no such file at ${url}.` + (t ? ` The files in that repository are listed at ${t}` : ""));
+    }
+    if (resp.status === 200)
+      throw new Error("the server ignored the byte-range request (HTTP 200), so the header cannot be read " +
+                      "without downloading the whole file.");
+    throw new Error(`HTTP ${resp.status} for ${url}`);
+  }
+  throw lastErr;
+}
+
+async function parseRemote(url) {
+  let buf = new Uint8Array(0), total = null, fetched = 0;
+  for (;;) {
+    const lo = buf.length;
+    let hi = lo + BLOCK - 1;
+    if (total !== null) hi = Math.min(hi, total - 1);
+    if (total !== null && lo > hi) return { res: "error: the file ends inside its own header", fetched };
+    const r = await fetchRange(url, lo, hi);
+    if (r.total !== null) total = r.total;
+    fetched += r.data.length;
+    const next = new Uint8Array(buf.length + r.data.length);
+    next.set(buf); next.set(r.data, buf.length); buf = next;
+    const res = py.globals.get("add_part")(buf, total);
+    if (res !== "more") return { res, fetched };
+    if (!r.data.length) return { res: "error: the file ends inside its own header", fetched };
+    if (buf.length >= MAX_HEADER)
+      return { res: "error: read 512 MB without reaching the end of the header; this does not look like a GGUF file", fetched };
+  }
+}
+
+async function inspectRemote(ref) {
+  if (busy || !py || !ref.trim()) return;
+  busy = true;
+  try {
+    const { url, name } = resolve(ref);
+    const file = url.split("/").pop().split("?")[0];
+    const sm = SHARD.exec(decodeURIComponent(file));
+    const urls = [];
+    if (sm) {
+      const base = url.slice(0, url.lastIndexOf("/"));
+      const n = parseInt(sm[3], 10);
+      for (let i = 1; i <= n; i++)
+        urls.push(`${base}/${encodeURIComponent(`${sm[1]}-${String(i).padStart(5, "0")}-of-${sm[3]}.gguf`)}`);
+    } else urls.push(url);
+    py.globals.get("reset")();
+    let fetched = 0;
+    for (let i = 0; i < urls.length; i++) {
+      show(`Fetching the header${urls.length > 1 ? ` of part ${i + 1} of ${urls.length}` : ""}...`);
+      const { res, fetched: f } = await parseRemote(urls[i]);
+      fetched += f;
+      if (res !== "ok") throw new Error(res.replace(/^error: /, ""));
+    }
+    last = { kind: "remote", ref };
+    show(py.globals.get("report")(name, ref.trim(), fetched, bandwidth(),
+                                  document.getElementById("tensors").checked));
+    const q = new URL(location.href);
+    q.searchParams.set("model", ref.trim());
+    history.replaceState(null, "", q);
+  } catch (e) {
+    show("error: " + (e.message || String(e)).split("\n").slice(-2).join(" "), true);
+  } finally { busy = false; }
+}
+
+function bandwidth() {
+  const v = parseFloat(document.getElementById("bw").value);
+  return v > 0 ? v : 0;
+}
+
+function rerun() {
+  if (!last) return;
+  if (last.kind === "local") inspectLocal(last.files); else inspectRemote(last.ref);
+}
+
+document.getElementById("f").addEventListener("change", e => { if (e.target.files.length) inspectLocal(e.target.files); });
+document.getElementById("go").addEventListener("click", () => inspectRemote(document.getElementById("ref").value));
+document.getElementById("ref").addEventListener("keydown", e => { if (e.key === "Enter") inspectRemote(e.target.value); });
+document.getElementById("bw").addEventListener("change", rerun);
+document.getElementById("tensors").addEventListener("change", rerun);
+for (const a of document.querySelectorAll("a[data-ref]")) {
+  a.addEventListener("click", e => { e.preventDefault(); document.getElementById("ref").value = a.dataset.ref; inspectRemote(a.dataset.ref); });
+}
+copyBtn.addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(out.textContent); copyBtn.textContent = "Copied"; }
+  catch (_) { copyBtn.textContent = "Select the text to copy"; }
+  setTimeout(() => { copyBtn.textContent = "Copy report"; }, 1500);
+});
+boot().catch(e => show("The Python runtime failed to load: " + e, true));
+</script>
+</body>
+</html>

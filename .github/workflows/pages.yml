@@ -1,0 +1,69 @@
+name: docs site
+
+# Builds the documentation site and the browser GGUF inspector from the repository and
+# publishes them with GitHub Pages. Every page is rendered from a file in the repository
+# (tools/build_site.py), and the inspector runs src/llama_roofline/gguf.py and
+# inspection.py as they are on main, so the site cannot drift from the code.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - README.md
+      - CHANGELOG.md
+      - CONTRIBUTING.md
+      - docs/**
+      - examples/**
+      - web/**
+      - src/llama_roofline/gguf.py
+      - src/llama_roofline/inspection.py
+      - tools/build_site.py
+      - pyproject.toml
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install markdown==3.7
+      - run: python tools/build_site.py --out _site
+      # The inspector imports these two files as flat modules, outside the package.
+      # Prove that works before publishing a page that depends on it.
+      - name: The vendored inspector code runs on its own
+        working-directory: _site
+        run: |
+          python -I -c "
+          import sys; sys.path.insert(0, '.')
+          import gguf, inspection
+          assert 'from . import gguf' in open('inspection.py').read()
+          assert gguf.GGML_TYPES[12][0] == 'Q4_K'
+          print('flat import ok')
+          "
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -24,6 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   going missing.
 - `llama_roofline.inspection`: the summary and text report of `inspect`, standard
   library only, so the browser inspector runs the same code as the CLI.
+- A documentation site, https://manunicholasjacob.com/llama-roofline/, built from the
+  README, `docs/`, the results gallery, CONTRIBUTING and this changelog by
+  `tools/build_site.py` and published by a Pages workflow.
+- GGUF Inspector, the `inspect` report in a web page
+  (https://manunicholasjacob.com/llama-roofline/inspector.html): a local file's header is
+  read in the browser, a Hub file's through range requests, and the page runs this
+  package's `gguf.py` and `inspection.py` in Pyodide. `?model=hf:...` links share a
+  result. `tools/build_site.py --space DIR` writes it as a static Hugging Face Space.
+- Issue templates for a GGUF type it cannot size and for feature requests, a pull
+  request template, and a CONTRIBUTING section on adding a GGUF type.
 
 ### Changed
 - Errors for files that are not GGUF say what the file is: safetensors, a zip

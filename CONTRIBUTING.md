@@ -43,6 +43,30 @@ House rules:
 - Add a test. The suite runs in under two seconds and needs neither llama.cpp nor a GGUF
   file; synthesise what you need the way `tests/test_gguf.py` does.
 
+## A GGUF type it cannot size
+
+New ggml types appear in llama.cpp every few months. When `inspect` prints `type<N>` or a
+`?` in the size column, the fix is usually one line in `GGML_TYPES` in
+`src/llama_roofline/gguf.py`: the type id from `ggml/include/ggml.h`, and the block size and
+bytes per block from the `static_assert` next to the block struct in
+`ggml/src/ggml-common.h`. Then check it against a real file: for every tensor, the gap to
+the next tensor's offset minus the computed size must be smaller than the alignment (32
+bytes unless the file says otherwise). `inspect hf:OWNER/REPO/FILE.gguf --tensors --json`
+gives the offsets without downloading the weights. Name the file you checked in the pull
+request. If you only have the file and not the layout, open an issue with the
+"A GGUF file it cannot read or size" template instead.
+
+## The documentation site and the browser inspector
+
+`python tools/build_site.py` builds the site into `_site/` (it needs `pip install
+markdown`); every page is rendered from a file in this repository, so edit the source file,
+not the HTML. The inspector is `web/inspector.html`; it loads `gguf.py` and
+`inspection.py` from `src/llama_roofline/` at build time and runs them in Pyodide, so those
+two files must stay standard library only and importable as flat modules (a test checks
+both). `python -m http.server --directory _site` serves it locally.
+`python tools/build_site.py --space DIR` writes the same inspector as a static Hugging Face
+Space.
+
 ## Things that would genuinely help
 
 - A better portable bandwidth ceiling. The numpy kernels are a lower bound and everyone

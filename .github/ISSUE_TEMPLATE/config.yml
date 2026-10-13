@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: GGUF Inspector in the browser
+    url: https://manunicholasjacob.com/llama-roofline/inspector.html
+    about: See what is inside a GGUF file (local or on the Hugging Face Hub) without installing anything.
+  - name: Documentation
+    url: https://manunicholasjacob.com/llama-roofline/
+    about: The method, the guide to memory-bound decode, and the results gallery.

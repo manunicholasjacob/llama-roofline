@@ -8,6 +8,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/pypi/pyversions/llama-roofline.svg)](https://pypi.org/project/llama-roofline/)
 [![Results gallery](https://img.shields.io/badge/results-add%20your%20machine-blue.svg)](https://github.com/manunicholasjacob/llama-roofline/issues/new?template=results-gallery.md)
+[![Docs](https://img.shields.io/badge/docs-site-orange.svg)](https://manunicholasjacob.com/llama-roofline/)
+[![GGUF Inspector](https://img.shields.io/badge/GGUF%20Inspector-in%20your%20browser-orange.svg)](https://manunicholasjacob.com/llama-roofline/inspector.html)
 
 When a local LLM generates text one token at a time, it has to read **every weight in the
 model, from memory, for every single token**. Nothing is reused. That makes token
@@ -123,6 +125,11 @@ llama-roofline inspect hf:OWNER/REPO/FILE.gguf --peak-bw 50  # and the speed cei
 A split model (`...-00001-of-00003.gguf`) is read part by part, locally or remotely, so
 the figures cover the whole model. For a gated or private repository set `HF_TOKEN`; it is
 sent to huggingface.co only. `--json` prints the same summary as data.
+
+The same report runs in a web page, with nothing to install:
+[GGUF Inspector](https://manunicholasjacob.com/llama-roofline/inspector.html). Pick a local
+file (only its header is read, inside the browser) or name a Hub file. It runs this
+package's own `gguf.py` and `inspection.py` in Pyodide, so it prints what the CLI prints.
 
 ## Which quantization should you run?
 

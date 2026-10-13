@@ -153,7 +153,8 @@ def render_text(r: Dict[str, Any], version: str, show_tensors: bool = False,
         _field(out, "per token", f"not computable. This file uses {unknown}, which "
                                  f"llama-roofline {version} cannot size. Try `pip install "
                                  "-U llama-roofline`; if the type is still unknown, please "
-                                 "open an issue naming it.")
+                                 "report it: https://github.com/manunicholasjacob/"
+                                 "llama-roofline/issues/new?template=gguf-type.md")
     out += ["", "  TENSOR TYPES", THIN, f"    {'type':<10}{'tensors':>9}{'MB':>10}{'share':>8}"]
     denom = size or r["total_tensor_bytes"]
     for name, slot in r["by_type"].items():
