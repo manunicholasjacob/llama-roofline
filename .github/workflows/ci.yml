@@ -70,12 +70,12 @@ jobs:
           "
       - name: The advisor and the GGUF reader must work without numpy either
         run: |
-          llama-roofline advise --core gracemont
+          llama-roofline advise --core cortex-a76
           llama-roofline advise --list-cores
           python -c "
           from llama_roofline import advisor, gguf
           m = advisor.load_matrix()
-          assert advisor.cores(m) == ['cortex-a76', 'golden-cove', 'gracemont']
+          assert advisor.cores(m) == ['cortex-a76']
           assert gguf.GGML_TYPES[2][0] == 'Q4_0'
           print('advisor and gguf reader are stdlib-only, as intended')
           "

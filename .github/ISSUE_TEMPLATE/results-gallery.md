@@ -17,7 +17,7 @@ Paste diagnosis.md from your output directory, or the terminal report:
   llama-roofline diagnose
 
 If you also ran the format comparison, paste that too. It is the more useful of the two,
-because the rankings are core-specific and only three cores have been measured:
+because the shipped measurements cover one core, a Raspberry Pi 5:
 
   llama-roofline advise --measure --models ~/models/<several quants of one model>
 -->

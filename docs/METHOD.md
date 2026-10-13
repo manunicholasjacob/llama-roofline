@@ -199,10 +199,8 @@ the report says so instead of drawing a line through it.
   accuracy. A Q2 model is faster than a Q8 model and that says nothing about whether it is
   still useful. `advise` does show perplexity, but it comes from the shipped study, on one
   model family at one scale, and it is a property of those artifacts rather than of yours.
-- **Energy, on your machine.** Measuring it needs a power rail this tool cannot assume.
-  `advise` reports energy per token where the shipped study had one, which is the
-  Raspberry Pi's PMIC and nowhere else, and it says the column is absent rather than
-  printing a zero anywhere else.
+- **Energy, on your machine.** Measuring it needs a power rail this tool cannot assume,
+  and `advise` prints no energy figures.
 - **GPU inference.** Offload is detected and warned about. The ceiling measured is system
   RAM bandwidth; offloaded layers stream from VRAM instead, so the percentages do not
   apply. `--gpu-layers 0` is the default for this reason.
@@ -265,21 +263,17 @@ averaged across cores.
 
 The measurements are a controlled format study: Qwen2.5-0.5B-Instruct and
 Qwen2.5-1.5B-Instruct, quantized from the official FP16 GGUF into eight formats, run
-under `llama-bench -p 128 -n 128` with five repetitions on three microarchitectures. The
-Cortex-A76 is a Raspberry Pi 5. The Golden Cove and Gracemont rows are one i7-12700H with
-`llama-bench` pinned by affinity mask to one core type at a time, so the core varies while
-the memory system stays fixed. Energy is the Pi's PMIC rail sum, collected in a separate
-identical run because sampling power perturbs decode, and it is uncalibrated, so it
-supports ratios between formats and not absolute joules. Perplexity is 100 chunks of 512
+under `llama-bench -p 128 -n 128` with five repetitions on a Raspberry Pi 5 (Cortex-A76),
+one format after another. Formats within a few percent of each other are therefore not
+reliably ordered, and the report says so. Perplexity is 100 chunks of 512
 tokens from a public-domain corpus, measured at 0.5B on the same artifacts, so it is a
 property of the file rather than of the core. The dataset is archived at
 [10.5281/zenodo.21938812](https://doi.org/10.5281/zenodo.21938812).
 
 Four rules keep the advice honest:
 
-- **No global ranking.** Every table is one core at one thread count at one model scale,
-  because the orderings genuinely differ. Q4_0 leads Golden Cove at two threads; IQ4_NL
-  leads Gracemont at four; the A76 converges the whole 4-bit class to within 4%.
+- **One table per measurement.** Every table is one core at one thread count at one model
+  scale, and nothing is averaged across cores.
 - **The evidence level is stated per core.** Detection distinguishes the exact machine
   measured, a different chip with the same core design, a close relative, and nothing.
   Only the first three produce a table, the third is labelled as extrapolation in the
@@ -288,8 +282,8 @@ Four rules keep the advice honest:
   everyone already knows about. The advisor also reports the spread within the largest
   group of formats that stream within 3% of the same bytes, which is the only comparison
   that isolates what the format itself costs.
-- **Absent is not zero.** There is no energy column on x86, because Windows reports no
-  package power without a driver and the study did not measure it.
+- **Absent is not zero.** A core with no shipped rows gets no table and no guess, only the
+  recipe for measuring it.
 
 ## 9. Provenance
 

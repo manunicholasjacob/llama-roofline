@@ -1,13 +1,8 @@
 """Which quantization format should you run, on the core you actually have.
 
 The usual answer to that question is a single global ranking, most often "Q4_K_M is the
-balanced choice". Measurement says there is no single ranking. The same eight GGUF files,
-built from the same FP16 source, order differently on an Arm Cortex-A76, an Intel
-Golden Cove P-core and an Intel Gracemont E-core, and the ordering moves again with the
-thread count and with the model scale.
-
-So this module refuses to give one answer. It looks up the core, gives that core's
-ranking, says how the numbers were obtained, and on silicon nobody measured it says so
+balanced choice". This module does not give
+one answer. It looks up the core, gives the measurements that exist for that core, says how the numbers were obtained, and on silicon nobody measured it says so
 and shows how to measure it.
 
 The matrix in ``data/format_matrix.csv`` holds one row per measurement, with the file it
@@ -32,6 +27,10 @@ PPL_TIE = 0.05
 # Below this share of on-label bytes, a file is mostly not the format its name claims and
 # any comparison involving it is partly measuring llama-quantize's substitutions.
 ON_LABEL_CONFOUNDED = 60.0
+# The report for the shipped rows prints speed, streamed bandwidth and perplexity. The
+# per-format envelope deficit and energy per token stay in the data file and in the
+# computed advice, but are not printed or exported for the shipped rows in this release.
+SHOW_ENVELOPE_AND_ENERGY = False
 
 # The study these numbers come from, quoted once so every report can point at it.
 SOURCE_NOTE = (
@@ -218,6 +217,8 @@ def matched_byte_spread(matrix, core: str, params_b: float) -> Dict[int, Dict[st
 def advise_core(matrix, core: str, params_b: Optional[float] = None,
                 threads: Optional[int] = None) -> Dict[str, Any]:
     """Everything worth saying about one core, as data."""
+    if not scales(matrix, core):
+        return {"core": core, "error": "no rows for this core"}
     scale = nearest_scale(matrix, core, params_b)
     avail_threads = thread_counts(matrix, core, scale)
     if not avail_threads:
@@ -292,8 +293,28 @@ def advise_core(matrix, core: str, params_b: Optional[float] = None,
     return out
 
 
+HELD_KEYS = ("envelope_deficit_pct", "off_envelope", "lowest_energy")
+
+
+def exportable(adv: Dict[str, Any]) -> Dict[str, Any]:
+    """The advice as written to --json, without the fields the report does not print."""
+    out = {k: v for k, v in adv.items() if k != "pareto"}
+    if SHOW_ENVELOPE_AND_ENERGY:
+        return out
+    for k in HELD_KEYS:
+        out.pop(k, None)
+    out["has_energy"] = False
+    for k in ("rows", "fastest", "best_quality_at_speed"):
+        v = out.get(k)
+        if isinstance(v, list):
+            out[k] = [{kk: vv for kk, vv in r.items() if kk != "mJ_per_token"} for r in v]
+        elif isinstance(v, dict):
+            out[k] = {kk: vv for kk, vv in v.items() if kk != "mJ_per_token"}
+    return out
+
+
 def cross_core_facts(matrix) -> List[str]:
-    """The findings that held on every core measured, computed from the matrix itself."""
+    """Facts about the shipped files, computed from the matrix itself."""
     facts: List[str] = []
     scale = 0.5
 
@@ -321,61 +342,9 @@ def cross_core_facts(matrix) -> List[str]:
               "recipes land at 58 to 100% on-label, so this is a small-model effect and it "
               "is worst exactly where people benchmark quickly.")
 
-    # 1. Where the community default lands, per core, at its own best thread count.
-    lines = []
-    for core in cores(matrix):
-        point = best_operating_point(matrix, core, scale)
-        if not point:
-            continue
-        rows = rows_for(matrix, core, scale, point[0])
-        d = envelope_deficit(rows)
-        if "Q4_K_M" in d:
-            lines.append(f"{rows[0]['core_label']} {d['Q4_K_M']:.0f}%")
-    if lines:
-        facts.append(
-            "Q4_K_M, the format most model cards recommend, sits below the streamed-byte "
-            "envelope on every core measured at 0.5B: " + "; ".join(lines) + ". At 1.5B it "
-            "recovers, because the runtime's kernel coverage for its tensor types recovers "
-            "and the 256-divisibility fallback that inflated it disappears."
-        )
-
-    # 2. The energy and quality trade, where energy exists.
-    a76 = rows_for(matrix, "cortex-a76", scale, 2)
-    by_fmt = {r["format"]: r for r in a76}
-    if {"Q4_K_M", "IQ4_XS"} <= set(by_fmt) and by_fmt["Q4_K_M"].get("mJ_per_token"):
-        km, xs = by_fmt["Q4_K_M"], by_fmt["IQ4_XS"]
-        prem = 100.0 * (km["mJ_per_token"] / xs["mJ_per_token"] - 1)
-        dppl = xs["perplexity"] - km["perplexity"]
-        facts.append(
-            f"On the Pi 5 that costs energy: Q4_K_M spends {km['mJ_per_token']:.0f} mJ per "
-            f"token against IQ4_XS's {xs['mJ_per_token']:.0f}, a {prem:.0f}% premium, for "
-            f"{dppl:.2f} perplexity points of quality."
-        )
-    if {"Q6_K", "Q4_K_M"} <= set(by_fmt) and by_fmt["Q6_K"].get("mJ_per_token"):
-        q6, km = by_fmt["Q6_K"], by_fmt["Q4_K_M"]
-        facts.append(
-            f"Also on the Pi 5, Q6_K reaches better quality than Q4_K_M "
-            f"({q6['perplexity']:.2f} against {km['perplexity']:.2f}) at the same energy "
-            f"per token ({q6['mJ_per_token']:.0f} against {km['mJ_per_token']:.0f} mJ)."
-        )
-
     facts.append(
-        "The label does not describe the file. Requantizing from a Q8_0 intermediate "
-        "instead of FP16 leaves the same name on a file with a different per-tensor type "
-        "map, and those files decoded up to 38% slower on the Cortex-A76. Check what you "
-        "downloaded with `llama-roofline inspect <model.gguf>`."
+        "Check what you downloaded with `llama-roofline inspect <model.gguf>`."
     )
-
-    # 3. Whether the top choice actually differs between cores.
-    tops = {}
-    for core in cores(matrix):
-        point = best_operating_point(matrix, core, scale)
-        if point:
-            tops[point[1]["core_label"]] = (point[1]["format"], point[0])
-    if len(set(v[0] for v in tops.values())) > 1:
-        pieces = [f"{lab} wants {fmt} at {t} threads" for lab, (fmt, t) in tops.items()]
-        facts.append("The fastest choice is not the same on every core: " + "; ".join(pieces)
-                     + ". A ranking measured on a laptop is not advice for a phone.")
     return facts
 
 
@@ -386,19 +355,22 @@ THIN = "-" * 72
 
 HYBRID_NOTE = (
     "A hybrid chip runs the same binary on two microarchitectures. Which one your decode "
-    "lands on is the scheduler's choice unless you pin it, and the two do not agree about "
-    "formats. Both rankings are below. Without pinning, a small thread count usually ends "
-    "up on the performance cores."
+    "lands on is the scheduler's choice unless you pin it, so both tables are below. "
+    "Without pinning, a small thread count usually ends up on the performance cores."
 )
 
 LIMITS = [
     "One model family at two scales. Qwen2.5 at 0.5B and 1.5B, so nothing here is "
     "verified on a 7B or on a different architecture, and the 0.5B and 1.5B rankings "
     "already differ from each other.",
-    "Three cores. Cortex-A76, Golden Cove, Gracemont. Everything else is either an "
-    "extrapolation, and labelled as one, or absent.",
-    "Energy on one board only, from an uncalibrated rail sum, so treat those numbers as "
-    "ratios between formats rather than absolute joules.",
+    "One core. Cortex-A76 on a Raspberry Pi 5. Everything else is either an "
+    "extrapolation, and labelled as one, or absent: on any other CPU, --measure is "
+    "the answer.",
+    "One sweep per scale, with the formats run one after another rather than in "
+    "randomized order. Formats within a few percent of each other are not reliably "
+    "ordered; treat them as tied.",
+    "No energy figures are printed. Energy was measured on one board only, from an "
+    "uncalibrated rail sum.",
     "Perplexity on 51 thousand tokens of one corpus. Format deltas exceed the paired "
     "noise, but perplexity is not downstream task accuracy.",
     "Nothing here measures your own files. Run `llama-roofline advise --measure` to get "
@@ -436,11 +408,15 @@ def _table(adv: Dict[str, Any]) -> List[str]:
     rows = adv["rows"]
     deficits = adv["envelope_deficit_pct"]
     front = {id(r) for r in adv["pareto"]}
-    has_energy = adv["has_energy"]
+    has_energy = adv["has_energy"] and SHOW_ENVELOPE_AND_ENERGY
     streamed = adv["normalization"] == "streamed_bytes"
+    show_env = streamed and SHOW_ENVELOPE_AND_ENERGY
 
     head = f"    {'format':<9}{'tok/s':>8}{'vs best':>9}"
-    head += f"{'GB/s':>8}{'off env':>9}" if streamed else f"{'file MiB':>10}"
+    if streamed:
+        head += f"{'GB/s':>8}" + (f"{'off env':>9}" if show_env else "")
+    else:
+        head += f"{'file MiB':>10}"
     head += f"{'ppl':>8}"
     if has_energy:
         head += f"{'mJ/tok':>9}"
@@ -452,8 +428,9 @@ def _table(adv: Dict[str, Any]) -> List[str]:
                     f"{('best' if rel == 0 else f'{rel:+.0f}%'):>9}")
         if streamed:
             out_line += f"{(r.get('streamed_GBs') or 0):>8.1f}"
-            d = deficits.get(r["format"])
-            out_line += f"{(f'-{d:.0f}%' if d and d >= 1 else '-'):>9}"
+            if show_env:
+                d = deficits.get(r["format"])
+                out_line += f"{(f'-{d:.0f}%' if d and d >= 1 else '-'):>9}"
         else:
             out_line += f"{(r.get('file_MiB') or 0):>10.0f}"
         out_line += (f"{r['perplexity']:>8.2f}" if r.get("perplexity") else f"{'-':>8}")
@@ -465,9 +442,12 @@ def _table(adv: Dict[str, Any]) -> List[str]:
         out.append(out_line)
     out.append("")
     out.append("    A < marks a format nothing else beats on both speed and quality.")
-    if streamed:
+    if show_env:
         out.append("    GB/s is over bytes actually streamed per token rather than file")
         out.append("    size, so 'off env' is time lost to unpacking, not to memory.")
+    elif streamed:
+        out.append("    GB/s is over bytes actually streamed per token rather than file")
+        out.append("    size.")
     return out
 
 
@@ -498,16 +478,17 @@ def render_core(adv: Dict[str, Any], confidence: str = "exact", why: str = "") -
                      f"{f['perplexity']:.2f}, still within {SPEED_TIE_PCT:.0f}% of the "
                      f"fastest.")
     elif q:
-        picks.append(f"{f['format']} is also the best quality inside that speed band. "
-                     f"That does not happen on every core.")
+        picks.append(f"{f['format']} is also the best quality inside that speed band.")
     e = adv.get("lowest_energy")
-    if e:
+    if not SHOW_ENVELOPE_AND_ENERGY:
+        pass
+    elif e:
         picks.append(f"Lowest energy per token: {e['format']} at {e['mJ_per_token']:.0f} mJ.")
     else:
         picks.append("Energy: not measured here. Package power needs a rail sensor and "
                      "this platform does not expose one.")
     off = adv.get("off_envelope")
-    if off:
+    if off and SHOW_ENVELOPE_AND_ENERGY:
         picks.append(f"Worst value for its bytes: {off['format']}, "
                      f"{off['deficit_pct']:.0f}% below the streaming envelope on this "
                      f"core. It moves the bytes. It spends longer unpacking them.")
@@ -546,10 +527,10 @@ def render_core(adv: Dict[str, Any], confidence: str = "exact", why: str = "") -
 def _unknown_silicon(detection: Dict[str, Any], matrix) -> List[str]:
     L = ["  NO MEASUREMENT FOR THIS SILICON", THIN]
     L.extend(_para(
-        "The rankings that ship with this tool were measured on an Arm Cortex-A76, an "
-        "Intel Golden Cove P-core and an Intel Gracemont E-core. This machine is none of "
-        "those and is not a close relative of one. Quoting those numbers at you would be "
-        "a guess wearing the clothes of advice."))
+        "The rankings that ship with this tool were measured on an Arm Cortex-A76 "
+        "(Raspberry Pi 5). This machine is not that core and is not a close relative of "
+        "one. Quoting those numbers at you would be a guess wearing the clothes of "
+        "advice."))
     L.append("")
     L.append("  MEASURE IT YOURSELF")
     L.append(THIN)
@@ -597,7 +578,7 @@ def render(detection: Dict[str, Any], advices, matrix, tool_version: str = "") -
         return "\n".join(L)
 
     if len(advices) > 1:
-        L.append("  TWO KINDS OF CORE, AND THEY WANT DIFFERENT FORMATS")
+        L.append("  TWO KINDS OF CORE")
         L.append(THIN)
         L.extend(_para(HYBRID_NOTE))
         L.append("")
@@ -607,7 +588,7 @@ def render(detection: Dict[str, Any], advices, matrix, tool_version: str = "") -
                              core_info.get("why", "")))
         L.append("")
 
-    L.append("  WHAT HELD ON EVERY CORE MEASURED")
+    L.append("  WHAT THE SHIPPED FILES SHOW")
     L.append(THIN)
     L.extend(_bullets(cross_core_facts(matrix)))
     L.append("")
@@ -648,9 +629,14 @@ def render_markdown(detection: Dict[str, Any], advices, matrix,
         L.append("")
         streamed = adv["normalization"] == "streamed_bytes"
         cols = ["format", "tok/s"]
-        cols += ["GB/s streamed", "below envelope"] if streamed else ["file MiB"]
+        show_env = streamed and SHOW_ENVELOPE_AND_ENERGY
+        show_energy = adv["has_energy"] and SHOW_ENVELOPE_AND_ENERGY
+        if streamed:
+            cols += ["GB/s streamed"] + (["below envelope"] if show_env else [])
+        else:
+            cols += ["file MiB"]
         cols += ["perplexity"]
-        if adv["has_energy"]:
+        if show_energy:
             cols.append("mJ/token")
         L.append("| " + " | ".join(cols) + " |")
         L.append("|" + "|".join(["---"] + ["---:"] * (len(cols) - 1)) + "|")
@@ -659,12 +645,13 @@ def render_markdown(detection: Dict[str, Any], advices, matrix,
             cells = [r["format"], f"{r['tok_s']:.1f}"]
             if streamed:
                 cells.append(f"{r.get('streamed_GBs') or 0:.1f}")
-                dd = d.get(r["format"])
-                cells.append(f"{dd:.0f}%" if dd and dd >= 1 else "-")
+                if show_env:
+                    dd = d.get(r["format"])
+                    cells.append(f"{dd:.0f}%" if dd and dd >= 1 else "-")
             else:
                 cells.append(f"{r.get('file_MiB') or 0:.0f}")
             cells.append(f"{r['perplexity']:.2f}" if r.get("perplexity") else "-")
-            if adv["has_energy"]:
+            if show_energy:
                 cells.append(f"{r['mJ_per_token']:.0f}" if r.get("mJ_per_token") else "-")
             L.append("| " + " | ".join(cells) + " |")
         L.append("")
@@ -676,11 +663,11 @@ def render_markdown(detection: Dict[str, Any], advices, matrix,
                      f"{q['perplexity']:.2f} against {f['perplexity']:.2f}) inside "
                      f"{SPEED_TIE_PCT:.0f}% of that speed.")
         e = adv.get("lowest_energy")
-        if e:
+        if e and SHOW_ENVELOPE_AND_ENERGY:
             L.append(f"Lowest energy per token is **{e['format']}** at "
                      f"{e['mJ_per_token']:.0f} mJ.")
         L.append("")
-    L.append("## What held on every core measured")
+    L.append("## What the shipped files show")
     L.append("")
     for fact in cross_core_facts(matrix):
         L.append(f"- {fact}")
@@ -807,9 +794,9 @@ def render_measured(system: Dict[str, Any], measured: List[Dict[str, Any]],
     L.append("  WHERE TO SEND IT")
     L.append(THIN)
     L.extend(_para(
-        "Three CPU cores have been measured for the shipped rankings. If this machine is "
-        "not one of them, or if it is and your ordering disagrees, that is worth more "
-        "than another confirmation. Re-run with --markdown result.md and open an issue:"))
+        "One CPU core, the Raspberry Pi 5's Cortex-A76, has been measured for the shipped "
+        "rankings. If this machine is not that core, or if it is and your ordering "
+        "disagrees, that is worth more than another confirmation. Re-run with --markdown result.md and open an issue:"))
     L.append("")
     L.append(f"    {GALLERY_URL}")
     L.append("")
@@ -879,10 +866,9 @@ def quantize_plan(source_path: str, quant_label: Optional[str],
     """Commands that build a comparable format set from one unquantized model.
 
     The insistence on an unquantized source is the whole point. Requantizing from a
-    Q8_0 intermediate is a single extra flag and it produces files that carry the same
-    format label, the same nominal bit width, and a different per-tensor type map. On
-    the Cortex-A76 those files decoded up to 38% slower than their FP16-sourced
-    counterparts. A comparison built on them measures the intermediate, not the format.
+    Q8_0 intermediate is a single extra flag, and every file it produces carries the
+    rounding of the intermediate as well as its own. A set built that way is not
+    comparable with one built from the original weights.
     """
     import os as _os
 
@@ -910,12 +896,10 @@ def quantize_plan(source_path: str, quant_label: Optional[str],
         L.append(THIN)
         L.extend(_para(
             f"It is already quantized to {quant_label}. Building the comparison set from "
-            f"it needs llama-quantize's --allow-requantize flag, and the files that come "
-            f"out carry the same format labels as a proper set while holding different "
-            f"per-tensor types. On the Cortex-A76 those requantized files decoded up to "
-            f"38% slower than their FP16-sourced counterparts under an identical name. "
-            f"A comparison built on them measures what the file was made from rather "
-            f"than what the format costs."))
+            f"it needs llama-quantize's --allow-requantize flag, and every file that "
+            f"comes out carries the rounding of {quant_label} as well as its own. A set "
+            f"built that way is not comparable with one built from the original "
+            f"weights."))
         L.append("")
         L.extend(_para(
             "Download the F16 or BF16 GGUF of the same model instead, or convert it from "

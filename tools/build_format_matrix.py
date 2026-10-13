@@ -200,6 +200,9 @@ def emit(rows, core, model, params_b, threads, fmt, tok_s, file_bytes,
     })
 
 
+SHIPPED_CORES = ("cortex-a76",)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--raw", required=True, help="paper16-format-tax/data directory")
@@ -257,6 +260,9 @@ def main(argv=None) -> int:
                  source=f"paper16-format-tax/data/{name}"
                         + ("; streamed bytes parsed from the artifacts" if PARSED else ""))
 
+    # Only the Raspberry Pi 5 (Cortex-A76) rows ship. The x86 rows stay out of the
+    # package until they are re-measured with the formats in randomized order.
+    rows = [r for r in rows if r["core"] in SHIPPED_CORES]
     rows.sort(key=lambda r: (r["params_b"], r["core"], r["threads"], -r["tok_s"]))
     out = os.path.abspath(args.out)
     os.makedirs(os.path.dirname(out), exist_ok=True)

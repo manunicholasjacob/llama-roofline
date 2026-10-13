@@ -25,9 +25,9 @@ abstract: >-
   tok/s = BW_eff / model_bytes, and reports the resulting bandwidth utilisation
   together with the optimal quantization and thread configuration. It also answers
   which quantization format to run on the local CPU core, from a shipped matrix of
-  controlled measurements across three microarchitectures that includes energy and
-  perplexity, stating its evidence basis per core and declining to guess on silicon
-  it has no measurement for.
+  Raspberry Pi 5 (Cortex-A76) measurements that includes perplexity,
+  stating its evidence basis and declining to guess on silicon it has no measurement
+  for, where it benchmarks the user's own files instead.
 keywords:
   - llama.cpp
   - large language models
@@ -36,8 +36,8 @@ keywords:
   - quantization
   - edge inference
 license: MIT
-version: 0.2.1
-date-released: "2026-10-03"
+version: 0.2.2
+date-released: "@@RELEASE_DATE@@"
 references:
   - type: software
     title: "llama.cpp"

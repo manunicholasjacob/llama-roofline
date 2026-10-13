@@ -64,6 +64,62 @@ def thread_list(text: str) -> List[int]:
 
 # --------------------------------------------------------------------------- models
 
+# Ollama stores each model as a plain GGUF blob named by its digest, so every read-only
+# command works on it once the name is resolved. Remembered so reports can print the
+# name the user typed instead of a 64-character digest.
+OLLAMA_NAMES: Dict[str, str] = {}
+_OLLAMA_MODEL_LAYER = "application/vnd.ollama.image.model"
+
+
+def ollama_models_dir() -> str:
+    """Where Ollama keeps manifests and blobs: $OLLAMA_MODELS, else ~/.ollama/models."""
+    return os.environ.get("OLLAMA_MODELS") or os.path.join(
+        os.path.expanduser("~"), ".ollama", "models")
+
+
+def resolve_ollama(ref: str) -> str:
+    """Turn an Ollama model name such as ``qwen2.5:7b`` into the path of its GGUF blob.
+
+    Accepts ``name``, ``name:tag``, ``namespace/name:tag`` and
+    ``registry/namespace/name:tag``; the tag defaults to ``latest``, the namespace to
+    ``library`` and the registry to ``registry.ollama.ai``, as in ``ollama pull``.
+    Returns the unresolved reference unchanged when no manifest is found, so the caller
+    reports it the same way as any other missing file.
+    """
+    name, _, tag = ref.partition(":")
+    tag = tag or "latest"
+    parts = [p for p in name.split("/") if p]
+    if len(parts) == 1:
+        parts = ["registry.ollama.ai", "library"] + parts
+    elif len(parts) == 2:
+        parts = ["registry.ollama.ai"] + parts
+    root = ollama_models_dir()
+    manifest = os.path.join(root, "manifests", *parts, tag)
+    try:
+        with open(manifest, "r", encoding="utf-8") as f:
+            layers = json.load(f).get("layers", [])
+    except (OSError, ValueError):
+        return "ollama:" + ref
+    for layer in layers:
+        if layer.get("mediaType") == _OLLAMA_MODEL_LAYER:
+            digest = str(layer.get("digest", "")).replace(":", "-")
+            path = os.path.abspath(os.path.join(root, "blobs", digest))
+            OLLAMA_NAMES[path] = f"{name}:{tag}"
+            return path
+    return "ollama:" + ref
+
+
+def _not_a_file(path: str) -> str:
+    """The message for a model argument that is not a readable file."""
+    i = path.find("ollama:")
+    if i >= 0:
+        ref = path[i + len("ollama:"):]
+        return (f"error: no Ollama model named {ref} under "
+                f"{os.path.join(ollama_models_dir(), 'manifests')} "
+                "(`ollama list` shows the names you have pulled)")
+    return f"error: not a file: {path}"
+
+
 def expand_model_args(patterns: List[str]) -> List[str]:
     """Turn files, directories and globs into a de-duplicated list of GGUF paths.
 
@@ -72,6 +128,9 @@ def expand_model_args(patterns: List[str]) -> List[str]:
     """
     found: List[str] = []
     for pat in patterns:
+        if pat.startswith("ollama:"):
+            found.append(resolve_ollama(pat[len("ollama:"):]))
+            continue
         pat = os.path.expanduser(pat)
         if os.path.isdir(pat):
             found.extend(sorted(glob.glob(os.path.join(pat, "*.gguf"))))
@@ -628,7 +687,7 @@ def cmd_inspect(args: argparse.Namespace) -> int:
     rc = 0
     for path in paths:
         if not os.path.isfile(path):
-            _eprint(f"error: not a file: {path}")
+            _eprint(_not_a_file(path))
             rc = 2
             continue
         try:
@@ -642,7 +701,7 @@ def cmd_inspect(args: argparse.Namespace) -> int:
         size = os.path.getsize(path)
 
         print(report.RULE)
-        print(f"  {os.path.basename(path)}")
+        print(f"  {OLLAMA_NAMES.get(path, os.path.basename(path))}")
         print(report.RULE)
         comp = gguf.composition(tensors, desc.get("quant"))
         print(f"  label      : {desc.get('quant') or 'unknown'}"
@@ -702,16 +761,15 @@ def cmd_inspect(args: argparse.Namespace) -> int:
                                     for t in ranked[:3]) + ".")
             else:
                 lead = (f"Only {share:.0f}% of this file's repeating-layer bytes are "
-                        f"{expected}. Most of it is "
+                        f"{expected}. " + ("Most of it is " if share < 50 else "The rest is ")
                         + ", ".join(f"{t} {comp['by_type_pct'][t]:.0f}%"
                                     for t in ranked[:3]) + ".")
             text = (lead + (f" The output head is {head_type}." if head_type else "")
                     + f" It stores {comp['bits_per_weight']:.2f} bits per weight."
                     + " A GGUF label names a recipe rather than a type. llama-quantize"
                       " substitutes per tensor when a shape does not divide by the block"
-                      " size, and it substitutes differently depending on what the file"
-                      " was converted from. Neither is visible from the filename, and at"
-                      " small model sizes the substitution can take over the file.")
+                      " size. None of that is visible from the filename, and at small"
+                      " model sizes the substitution can take over the file.")
             for line in report._wrap(text, 68):
                 print(f"  {line}")
             print()
@@ -777,8 +835,7 @@ def cmd_advise(args: argparse.Namespace) -> int:
         print(f"  wrote {args.markdown}")
     if args.json:
         payload = {"tool_version": __version__, "detection": detection,
-                   "advice": [{"core_info": ci, **{k: v for k, v in a.items()
-                                                   if k != "pareto"}}
+                   "advice": [{"core_info": ci, **advisor.exportable(a)}
                               for ci, a in advices]}
         with open(args.json, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2, default=str)
@@ -794,7 +851,7 @@ def _advise_plan(path: str) -> int:
     file silently measures the intermediate instead.
     """
     if not os.path.isfile(path):
-        _eprint(f"error: not a file: {path}")
+        _eprint(_not_a_file(path))
         return 2
     desc = gguf.describe(path)
     quant = desc.get("quant")
@@ -938,10 +995,9 @@ def build_parser() -> argparse.ArgumentParser:
         "advise",
         help="which quantization format to run on this machine's cores",
         description="Ranks GGUF quantization formats for the CPU core this machine "
-                    "has, from measurements on an Arm Cortex-A76, an Intel Golden Cove "
-                    "P-core and an Intel Gracemont E-core. On anything else it says so "
-                    "instead of guessing, and --measure builds the ranking from your "
-                    "own files.",
+                    "has, from measurements on an Arm Cortex-A76 (Raspberry Pi 5). On "
+                    "anything else it says so instead of guessing, and --measure builds "
+                    "the ranking from your own files.",
     )
     a.add_argument("--core", metavar="NAME",
                    help="force a core instead of detecting one (see --list-cores)")

@@ -228,3 +228,48 @@ def test_report_rejects_a_json_that_is_not_results(tmp_path, capsys, payload):
     path.write_text(payload)
     assert cli.main(["report", str(path)]) == 2
     assert "not a llama-roofline results file" in capsys.readouterr().err
+
+
+def _fake_ollama(root, ref_parts, tag, digest="sha256:" + "ab" * 32):
+    man = root.joinpath("manifests", *ref_parts)
+    man.mkdir(parents=True)
+    (man / tag).write_text(json.dumps({"layers": [
+        {"mediaType": "application/vnd.ollama.image.template", "digest": "sha256:" + "cd" * 32},
+        {"mediaType": "application/vnd.ollama.image.model", "digest": digest},
+    ]}))
+    blobs = root / "blobs"
+    blobs.mkdir(exist_ok=True)
+    blob = blobs / digest.replace(":", "-")
+    blob.write_bytes(b"GGUF")
+    return os.path.abspath(str(blob))
+
+
+def test_ollama_name_resolves_to_its_model_blob(tmp_path, monkeypatch):
+    monkeypatch.setenv("OLLAMA_MODELS", str(tmp_path))
+    blob = _fake_ollama(tmp_path, ["registry.ollama.ai", "library", "qwen2.5"], "7b")
+    assert cli.expand_model_args(["ollama:qwen2.5:7b"]) == [blob]
+    assert cli.OLLAMA_NAMES[blob] == "qwen2.5:7b"
+
+
+def test_ollama_tag_defaults_to_latest_and_namespaces_work(tmp_path, monkeypatch):
+    monkeypatch.setenv("OLLAMA_MODELS", str(tmp_path))
+    a = _fake_ollama(tmp_path, ["registry.ollama.ai", "library", "llama3.2"], "latest")
+    b = _fake_ollama(tmp_path, ["registry.ollama.ai", "someone", "tiny"], "q4",
+                     digest="sha256:" + "ef" * 32)
+    assert cli.resolve_ollama("llama3.2") == a
+    assert cli.resolve_ollama("someone/tiny:q4") == b
+
+
+def test_unknown_ollama_name_is_reported_not_raised(tmp_path, monkeypatch):
+    monkeypatch.setenv("OLLAMA_MODELS", str(tmp_path))
+    assert cli.resolve_ollama("nope:1b") == "ollama:nope:1b"
+    assert cli.main(["inspect", "ollama:nope:1b"]) == 2
+
+
+def test_unknown_ollama_name_says_which_name_and_where(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("OLLAMA_MODELS", str(tmp_path))
+    rc = cli.main(["inspect", "ollama:nosuchmodel:1b"])
+    err = capsys.readouterr().err
+    assert rc == 2
+    assert "no Ollama model named nosuchmodel:1b" in err
+    assert "manifests" in err

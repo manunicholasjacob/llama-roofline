@@ -175,7 +175,7 @@ def test_diagnose_with_a_path_that_is_not_a_model_fails_clearly(tmp_path, capsys
 def test_advise_list_cores_needs_no_hardware(capsys):
     assert cli.main(["advise", "--list-cores"]) == 0
     out = capsys.readouterr().out
-    assert "cortex-a76" in out and "gracemont" in out
+    assert "cortex-a76" in out and "gracemont" not in out
 
 
 def test_advise_rejects_a_core_it_has_no_measurements_for(capsys):

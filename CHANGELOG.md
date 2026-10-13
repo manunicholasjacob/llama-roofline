@@ -6,6 +6,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - @@RELEASE_DATE@@
+
+### Added
+- Ollama model names are accepted wherever a GGUF path is, as `ollama:NAME[:TAG]`
+  (for example `llama-roofline inspect ollama:qwen2.5:7b`). Ollama stores each model as a
+  plain GGUF blob named by its digest; the name is resolved through the local manifest
+  (`$OLLAMA_MODELS`, else `~/.ollama/models`) and `inspect` prints the name rather than
+  the digest. An unknown name is reported by name, with the directory searched,
+  and exit code 2.
+- README: a quickstart that needs no llama.cpp build (`inspect` reads only the file
+  header), pipx and uv install lines, and a BibTeX entry. PyPI page: project URLs,
+  keywords and a classifier.
+
+### Changed
+- `advise` ships the Raspberry Pi 5 (Cortex-A76) measurements only. On any other CPU,
+  including Intel hybrid laptops, it says there is no shipped measurement for that core
+  and points at `advise --measure`, which benchmarks the user's own files.
+- The `advise` report for the shipped measurements prints speed, streamed bandwidth and
+  perplexity. The streaming-envelope column, the energy column and the bullets built on
+  them are no longer printed or written to `--json`; the data file is unchanged.
+- `advise --measure` points at the one core the shipped rankings cover.
+- `advise --plan` explains its refusal of an already quantized source with llama.cpp's
+  own `--allow-requantize` warning.
+- `inspect`: when the labelled type is the majority of a file, the note says "The rest
+  is ..." instead of "Most of it is ...".
+- Report, README and documentation wording tightened to what the shipped measurements
+  show.
+
+### Fixed
+- On Windows 11 24H2 and later, which no longer ship `wmic`, the CPU was reported as
+  "Intel64 Family 6 Model ..." and the physical core count was missing, so `advise` could
+  not identify the core and the default thread sweep was built from logical cores only
+  (1, 10, 20 instead of 1, 7, 14, 20 on an i7-12700H). The brand string now comes from the
+  registry and the core count from CIM.
+- `advise` on a detected core with no rows in the matrix raised `IndexError`; it now
+  falls through to the measure-it-yourself report.
+
+### Removed
+- Launch-planning notes and the 0.2.0 release-notes essay under `docs/`. The changelog is
+  the record of changes.
+
 ## [0.2.1] - 2026-10-03
 
 A patch release: no change to any measurement, fit or advice. It makes bad input fail
@@ -55,8 +96,8 @@ metadata.
   that build a set worth comparing, and refuses when pointed at a file that is already
   quantized. Most people have one file per model rather than several formats of one, which
   makes `--measure` a size comparison; it now says so instead of presenting one as the
-  other. Requantizing from an intermediate produced files up to 38% slower on the A76 under
-  an identical label, which is why the source has to be unquantized.
+  other. The source has to be unquantized so that every file in the set comes from the same
+  weights.
 - `tools/verify_wheel.py` installs the built wheel and sdist into throwaway environments,
   runs the commands that need packaged data from a directory that is not the checkout, and
   asserts the matrix was loaded from site-packages. A new CI job runs it on Linux and
@@ -99,9 +140,7 @@ rather than the one the roofline literature asks.
 - `llama-roofline advise`. Ranks GGUF quantization formats for the CPU core this machine
   has, from a shipped matrix of 98 measurements across an Arm Cortex-A76, an Intel Golden
   Cove P-core and an Intel Gracemont E-core, at two model scales, with Raspberry Pi PMIC
-  energy and perplexity on the same artifacts. There is no single ranking, because the
-  measurements do not support one: the fastest 4-bit format differs by core and by thread
-  count. The report states its evidence level per core (measured here, same core design,
+  energy and perplexity on the same artifacts. The report states its evidence level per core (measured here, same core design,
   extrapolated from a relative, or nothing), and on unmeasured silicon it refuses to guess
   and shows how to measure instead. `--measure` builds the ranking from your own files.
 - `llama-roofline inspect`. Prints a GGUF file's per-tensor type map, the bytes decode

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "llama-roofline"
-version = "0.2.1"
+version = "0.2.2"
 description = "Is your llama.cpp decode memory-bandwidth-bound? Measure it, in one command."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -13,6 +13,7 @@ authors = [{ name = "Manu Nicholas Jacob" }]
 keywords = [
     "llama.cpp", "llm", "roofline", "memory-bandwidth", "benchmark",
     "quantization", "gguf", "inference", "edge-ai", "local-llm",
+    "llamacpp", "ollama", "raspberry-pi", "tokens-per-second", "cli",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -31,6 +32,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: System :: Benchmark",
 ]
 # A default install should work end to end on first run: numpy measures the bandwidth
@@ -46,6 +48,10 @@ dev = ["pytest>=7"]
 [project.urls]
 Homepage = "https://github.com/manunicholasjacob/llama-roofline"
 Issues = "https://github.com/manunicholasjacob/llama-roofline/issues"
+Changelog = "https://github.com/manunicholasjacob/llama-roofline/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/manunicholasjacob/llama-roofline/blob/main/docs/METHOD.md"
+"Results gallery" = "https://github.com/manunicholasjacob/llama-roofline/issues?q=label%3Aresults"
+"Write-up" = "https://manunicholasjacob.com/writing/decode-is-memory-bound/"
 
 [project.scripts]
 llama-roofline = "llama_roofline.cli:main"

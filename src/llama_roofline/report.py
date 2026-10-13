@@ -505,8 +505,8 @@ def render_diagnosis(results: Dict[str, Any]) -> str:
                       "token roughly doubles tok/s, which is why a smaller model or a "
                       "lower quantization buys speed almost exactly in proportion to the "
                       "bytes it removes.")
-        advice.append("Not every format of the same size costs the same, though, and "
-                      "which one wins depends on your core. Run `llama-roofline advise`.")
+        advice.append("Not every format of the same size costs the same, though. "
+                      "Run `llama-roofline advise` to see what has been measured.")
     span = analysis.get("frontier_span")
     if span and span.get("speed_ratio") and span["size_ratio"] > 1.05:
         advice.append(f"Measured here: {span['smallest']} is {span['size_ratio']:.2f}x "

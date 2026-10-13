@@ -6,6 +6,8 @@
 [![PyPI](https://img.shields.io/pypi/v/llama-roofline.svg)](https://pypi.org/project/llama-roofline/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21842493.svg)](https://doi.org/10.5281/zenodo.21842493)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/pypi/pyversions/llama-roofline.svg)](https://pypi.org/project/llama-roofline/)
+[![Results gallery](https://img.shields.io/badge/results-add%20your%20machine-blue.svg)](https://github.com/manunicholasjacob/llama-roofline/issues/new?template=results-gallery.md)
 
 When a local LLM generates text one token at a time, it has to read **every weight in the
 model, from memory, for every single token**. Nothing is reused. That makes token
@@ -29,7 +31,7 @@ memory can actually sustain, benchmarks across a thread sweep, and prints this:
 
 ```
 ========================================================================
-  llama-roofline v0.2.0  --  diagnosis
+  llama-roofline v0.2.2  --  diagnosis
 ========================================================================
   Machine   : 12th Gen Intel(R) Core(TM) i7-12700H
               20 logical / 14 physical cores, 34.0 GB RAM, Windows AMD64
@@ -57,8 +59,8 @@ memory can actually sustain, benchmarks across a thread sweep, and prints this:
     token roughly doubles tok/s, which is why a smaller model or a lower
     quantization buys speed almost exactly in proportion to the bytes it
     removes.
-  * Not every format of the same size costs the same, though, and which
-    one wins depends on your core. Run `llama-roofline advise`.
+  * Not every format of the same size costs the same, though. Run
+    `llama-roofline advise` to see what has been measured.
   * Measured here: qwen0.5b-q4km is 4.91x smaller than qwen3b-q4km and
     decodes 4.28x faster.
   * Prompt processing is the opposite case: it scaled 4.9x with threads.
@@ -89,58 +91,41 @@ free. It cost a quarter of the decode throughput.
 `diagnose` also writes `diagnosis.md`, which is the same thing shaped for pasting into an
 issue or a forum thread when you want someone to look at your numbers.
 
+### Use Ollama or LM Studio and have no llama.cpp build?
+
+You can still look inside the models you already have. `inspect` reads only the file
+header, needs no `llama-bench`, and takes about a second:
+
+```bash
+pip install llama-roofline
+llama-roofline inspect ollama:qwen2.5:7b          # any model you have pulled
+llama-roofline inspect ~/path/to/model.gguf         # LM Studio and every other GGUF
+```
+
+It prints what the file actually contains under its format label, how many bytes decode
+reads per token, and how much of that is the output head. Divide your memory bandwidth by
+that per-token figure and you have the ceiling on your generation speed before you run
+anything.
+
 ## Which quantization should you run?
 
-The usual answer is "Q4_K_M is the balanced choice". Measurement disagrees, and it
-disagrees differently depending on which core you are on.
+`advise` answers "which quantization format should I run on this CPU?" from measurements,
+not from file names. On silicon it has data for, it prints a per-format table with the
+measurement each row came from. On anything else it says so and measures your own files
+instead of guessing:
 
 ```bash
 llama-roofline advise
 ```
 
-```
-  INTEL GRACEMONT (E-CORE), 4 THREADS, 0.5B CLASS
-------------------------------------------------------------------------
-    Evidence: measured on this machine. This is the CPU the x86 half
-    of the matrix was measured on.
-    Threads: 4 (fastest measured; measured at 2, 4)
-
-    format      tok/s  vs best    GB/s  off env     ppl
-    ---------------------------------------------------
-    IQ4_NL       43.6     best    15.2      -7%   20.70  <
-    IQ4_XS       36.7     -16%    12.7     -22%   20.70
-    Q3_K_M       36.4     -16%    12.8     -22%   21.04
-    Q2_K         36.2     -17%    12.0     -27%   21.83
-    Q4_0         35.1     -19%    12.1     -26%   21.71
-    Q8_0         31.2     -28%    16.4        -   19.52  <
-    Q4_K_M       29.3     -33%    11.5     -30%   20.12
-    Q6_K         28.5     -34%    14.3     -13%   19.52
-
-    * Fastest: IQ4_NL at 43.6 tok/s.
-    * Worst value for its bytes: Q4_K_M, 30% below the streaming
-      envelope on this core. It moves the bytes. It spends longer
-      unpacking them.
-    * The winner changes with thread count on this core (2 threads:
-      Q3_K_M, 4 threads: IQ4_NL), so set -t deliberately rather than
-      letting it default.
-```
-
-On the performance cores of the same laptop, running the same binary against the same
-files, Q4_0 wins instead, and Q4_0 is the one sitting mid-pack here on the E-cores. On a
-Raspberry Pi 5's Cortex-A76 the whole 4-bit class converges to within 4% and the choice
-comes down to energy and quality, where IQ4_XS wins. There is no ranking that holds
-everywhere, which is the point.
-
-Read a 0.5B table like that one knowing what is in the files. Most of these are mostly not
-the format they are named after at this size, so part of what separates them is which types
+Read any 0.5B comparison knowing what is in the files. At that size most formats are
+mostly not what they are named after, so part of what separates them is which types
 `llama-quantize` substituted rather than which format was asked for. The report says so
 where it prints such a table, and [the next section](#what-is-actually-in-that-gguf-file)
 is how to check any file you have.
 
-The rankings come from a controlled study of eight formats built from one FP16 source and
-measured on three microarchitectures, with Raspberry Pi PMIC energy and perplexity on the
-same artifacts. They ship as a data file with the measurement each row came from in the
-`source` column. On silicon nobody measured, the tool says so and shows you how to measure
+The data file ships with the package and records, for every row, the run it came from in
+the `source` column. On silicon nobody measured, the tool says so and shows you how to measure
 it rather than guessing:
 
 ```bash
@@ -157,8 +142,8 @@ llama-roofline advise --plan ~/models/qwen0.5b-f16.gguf
 ```
 
 prints the `llama-quantize` commands that build a comparable set, and refuses if you point
-it at a file that is already quantized, because requantizing from an intermediate produced
-files up to 38% slower on the A76 under the same label.
+it at a file that is already quantized, so every file in the set comes from the same
+source.
 
 ## What is actually in that GGUF file?
 
@@ -191,10 +176,8 @@ llama-roofline inspect ~/models/qwen0.5b-Q4_K_M.gguf
   is Q5_0 70%, Q6_K 17%, Q8_0 1%. The output head is Q8_0. It stores
   5.52 bits per weight. A GGUF label names a recipe rather than a
   type. llama-quantize substitutes per tensor when a shape does not
-  divide by the block size, and it substitutes differently depending
-  on what the file was converted from. Neither is visible from the
-  filename, and at small model sizes the substitution can take over
-  the file.
+  divide by the block size. None of that is visible from the filename,
+  and at small model sizes the substitution can take over the file.
 ```
 
 Eight formats of Qwen2.5-0.5B built from one FP16 source, measured over their repeating
@@ -319,6 +302,13 @@ tool that quietly stops reproducing its own reference result is not worth much. 
 pip install llama-roofline
 ```
 
+Or as an isolated command-line tool, without touching your environment:
+
+```bash
+pipx install llama-roofline        # or: uv tool install llama-roofline
+uvx llama-roofline inspect model.gguf   # one-off run, nothing installed
+```
+
 Python 3.9 or newer, on Linux, macOS or Windows. That pulls in `numpy` and `matplotlib` so
 the tool works end to end on first run.
 
@@ -422,8 +412,8 @@ Read these before quoting a number.
 - **Throughput only, except where the advisor says otherwise.** Nothing this tool measures
   on your machine touches output quality. The perplexity column in `advise` comes from the
   shipped study, on one model at one scale, and is not a measurement of your files.
-- **The advisor knows three cores.** Cortex-A76, Golden Cove and Gracemont, at 0.5B and
-  1.5B, on one model family. Close relatives are labelled as extrapolation and everything
+- **The advisor knows one core.** The Raspberry Pi 5's Cortex-A76, at 0.5B and 1.5B, on
+  one model family. Close relatives are labelled as extrapolation and everything
   else gets told to measure for itself. That is a narrow base for a broad question, and
   widening it is what the results gallery is for.
 - **Single-stream decode only.** Batching amortises the weight read across sequences, which
@@ -436,7 +426,18 @@ If this tool is useful in something you publish or post, please cite it. See
 [`CITATION.cff`](CITATION.cff), or:
 
 > M. N. Jacob, *llama-roofline: a portable memory-bandwidth roofline for llama.cpp*,
-> v0.2.1, 2026. doi:[10.5281/zenodo.21842493](https://doi.org/10.5281/zenodo.21842493)
+> v0.2.2, 2026. doi:[10.5281/zenodo.21842493](https://doi.org/10.5281/zenodo.21842493)
+
+```bibtex
+@software{jacob_llama_roofline,
+  author    = {Jacob, Manu Nicholas},
+  title     = {llama-roofline: a portable memory-bandwidth roofline for llama.cpp},
+  year      = {2026},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.21842493},
+  url       = {https://github.com/manunicholasjacob/llama-roofline}
+}
+```
 
 `10.5281/zenodo.21842493` is the concept DOI and always resolves to the newest version.
 To cite this exact release, use `10.5281/zenodo.23127710`.

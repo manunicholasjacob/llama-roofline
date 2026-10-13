@@ -20,8 +20,10 @@ def matrix():
 # ------------------------------------------------------------------ the shipped data
 
 def test_matrix_ships_and_parses(matrix):
-    assert len(matrix) > 50
-    assert advisor.cores(matrix) == ["cortex-a76", "golden-cove", "gracemont"]
+    assert len(matrix) > 30
+    # Only the Pi 5 rows ship. The x86 rows came from a sequential sweep, and a
+    # randomized repeat on the same laptop did not reproduce their ordering.
+    assert advisor.cores(matrix) == ["cortex-a76"]
 
 
 def test_every_row_says_where_it_came_from(matrix):
@@ -86,21 +88,22 @@ def test_a76_deficit_matches_the_published_sixteen_percent(matrix):
     assert round(advisor.envelope_deficit(rows)["Q4_K_M"]) == 16
 
 
-def test_golden_cove_matched_byte_spread_matches_the_paper(matrix):
-    spread = advisor.matched_byte_spread(matrix, "golden-cove", 0.5)
-    assert round(spread[2]["spread_pct"]) == 25
-    assert round(spread[6]["spread_pct"]) == 11
-
-
 def test_the_a76_four_bit_class_converges(matrix):
     spread = advisor.matched_byte_spread(matrix, "cortex-a76", 0.5)
     assert spread[2]["spread_pct"] < 5
 
 
-def test_the_winner_is_not_the_same_on_every_core(matrix):
-    winners = {advisor.best_operating_point(matrix, c, 0.5)[1]["format"]
-               for c in advisor.cores(matrix)}
-    assert len(winners) > 1
+def test_an_alder_lake_laptop_is_sent_to_measure(capsys, monkeypatch):
+    # Detection still names Golden Cove and Gracemont; with no rows for either, the
+    # report must fall through to "measure it yourself" rather than print a table.
+    from llama_roofline import cli, silicon
+    real = silicon.detect
+    monkeypatch.setattr(silicon, "detect",
+                        lambda cpu_override=None: real("12th Gen Intel(R) Core(TM) i7-12700H"))
+    assert cli.main(["advise"]) == 0
+    out = capsys.readouterr().out
+    assert "NO MEASUREMENT FOR THIS SILICON" in out
+    assert "GRACEMONT" not in out
 
 
 # ---------------------------------------------------------------------- the logic
@@ -202,6 +205,28 @@ def test_reports_are_plain_ascii(matrix):
         assert "—" not in text
 
 
+def test_shipped_report_prints_speed_and_quality_only(matrix):
+    # The envelope deficit and energy are computed (the tests above pin them) but are
+    # not printed or exported for the shipped rows while SHOW_ENVELOPE_AND_ENERGY is off.
+    assert advisor.SHOW_ENVELOPE_AND_ENERGY is False
+    detection = {"cpu": "x", "cores": [], "logical_cores": 4}
+    out = []
+    for scale in (0.5, 1.5):
+        adv = advisor.advise_core(matrix, "cortex-a76", params_b=scale)
+        pair = [({"core": "cortex-a76", "confidence": "exact", "why": ""}, adv)]
+        out.append(advisor.render(detection, pair, matrix, "0.2.2"))
+        out.append(advisor.render_markdown(detection, pair, matrix, "0.2.2"))
+        exported = advisor.exportable(adv)
+        for key in advisor.HELD_KEYS:
+            assert key not in exported
+        assert all("mJ_per_token" not in r for r in exported["rows"])
+        assert "pareto" not in exported
+    text = "\n".join(out)
+    for banned in ("off env", "below envelope", "below the streaming", "mJ", "premium",
+                   "Lowest energy", "Worst value"):
+        assert banned not in text, banned
+
+
 def test_measured_report_reads_back_its_own_numbers():
     measured = [
         {"format": "Q4_0", "name": "a", "threads": 4, "tok_s": 100.0,
@@ -233,7 +258,7 @@ def test_plan_refuses_an_already_quantized_source():
     text = "\n".join(advisor.quantize_plan("models/thing-Q4_K_M.gguf", "Q4_K_M"))
     assert "WRONG STARTING POINT" in text
     assert "--allow-requantize" in text
-    assert "38%" in text
+    assert "--allow-requantize" in text and "original weights" in text
     assert "llama-quantize models" not in text  # no commands offered
 
 
