@@ -378,3 +378,44 @@ def test_a_dropped_connection_is_retried(monkeypatch):
     reader = remote.RangeReader("https://example.org/m.gguf", opener=flaky)
     assert reader.read(4) == b"GGUF"
     assert calls["n"] == 2
+
+
+def test_a_reset_partway_through_the_body_is_retried(monkeypatch):
+    monkeypatch.setattr(remote.time, "sleep", lambda s: None)
+    data = build_gguf(MODEL, kv=KV)
+    good = FakeServer({"m.gguf": data})
+    calls = {"n": 0}
+
+    class Broken:
+        status = 206
+        headers = email.message.Message()
+
+        def read(self, n=-1):
+            raise ConnectionResetError(10054, "reset")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def flaky(req, timeout=None):
+        calls["n"] += 1
+        return Broken() if calls["n"] == 1 else good(req, timeout)
+
+    reader = remote.RangeReader("https://example.org/m.gguf", opener=flaky)
+    assert reader.read(4) == b"GGUF"
+    assert calls["n"] == 2 and reader.size == len(data)
+
+
+def test_retries_give_up_with_a_message(monkeypatch):
+    waits = []
+    monkeypatch.setattr(remote.time, "sleep", waits.append)
+
+    def down(req, timeout=None):
+        raise urllib.error.URLError(ConnectionResetError(10054, "reset"))
+
+    reader = remote.RangeReader("https://example.org/m.gguf", opener=down)
+    with pytest.raises(remote.RemoteError, match="could not reach example.org"):
+        reader.read(4)
+    assert waits == [0.5, 1.0, 2.0, 4.0]

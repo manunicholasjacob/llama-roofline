@@ -223,6 +223,11 @@ dimension is 896, so `llama-quantize` substitutes per tensor, warns per tensor, 
 no summary. At 1.5B the same recipes land at 58 to 100% on-label, so this is a small-model
 effect, and small models are where quantization comparisons usually get run.
 
+Which type fills in depends on the llama.cpp build that did the quantizing. Qwen's own
+Q2_K and Q3_K_M files on the Hub carry IQ4_NL where the build behind this table wrote
+Q4_0 (75% and 64% of the repeating layers, at the same 4.20 and 4.57 bits per weight,
+since both types store 4.5 bits). Run `inspect` on the file you actually have.
+
 `inspect` is also where the bytes-per-token figure comes from. The token embedding is a row
 lookup rather than a stream, so file size overstates what decode actually reads, by 18 to
 22% on these files.

@@ -35,8 +35,9 @@ HF_HOST = "huggingface.co"
 BLOCK = 4 * 1024 * 1024
 # Refuse to keep reading past this: a header this large means something is wrong.
 MAX_HEADER_BYTES = 512 * 1024 * 1024
-# Extra attempts after a dropped connection or a 5xx answer.
-RETRIES = 2
+# Extra attempts after a dropped connection or a 5xx answer, waiting 0.5, 1, 2 and 4 s.
+# Connection resets from the Hub's file store come in bursts that outlast a second or two.
+RETRIES = 4
 
 _HF_REF = re.compile(r"^(?P<owner>[^/@]+)/(?P<repo>[^/@]+)(?:@(?P<rev>[^/]+))?/(?P<file>.+)$")
 
@@ -168,39 +169,38 @@ class RangeReader:
             # Unredirected: the Hub answers with a redirect to its file store, and the
             # token has no business travelling there.
             req.add_unredirected_header("Authorization", f"Bearer {self.token}")
-        resp = None
         for attempt in range(RETRIES + 1):
             try:
                 resp = self._open(req, timeout=self.timeout)
+                with resp:
+                    status = getattr(resp, "status", None) or resp.getcode()
+                    if status == 416:
+                        return b""
+                    if status != 206:
+                        raise RemoteError(
+                            f"the server ignored the byte-range request (HTTP {status}), so "
+                            "the header cannot be read without downloading the whole file. "
+                            "Download it and run inspect on the local copy")
+                    total = _total_from_content_range(resp.headers.get("Content-Range", ""))
+                    data = resp.read(hi - lo + 1)
                 break
             except urllib.error.HTTPError as exc:
                 if exc.code >= 500 and attempt < RETRIES:
-                    time.sleep(0.5 * (attempt + 1))
+                    time.sleep(0.5 * 2 ** attempt)
                     continue
                 raise RemoteError(self._http_message(exc.code)) from None
             except (urllib.error.URLError, OSError) as exc:
-                # A reset during the TLS handshake is common enough on busy CDNs that one
-                # failed connection should not end the run.
+                # A reset during the TLS handshake, or partway through the body, is common
+                # enough on busy CDNs that one failed connection should not end the run.
                 if attempt < RETRIES:
-                    time.sleep(0.5 * (attempt + 1))
+                    time.sleep(0.5 * 2 ** attempt)
                     continue
                 reason = getattr(exc, "reason", exc)
                 raise RemoteError(f"could not reach "
                                   f"{urllib.parse.urlparse(self.url).netloc}: "
                                   f"{reason}") from None
-        with resp:
-            status = getattr(resp, "status", None) or resp.getcode()
-            if status == 416:
-                return b""
-            if status != 206:
-                raise RemoteError(
-                    f"the server ignored the byte-range request (HTTP {status}), so the "
-                    "header cannot be read without downloading the whole file. Download "
-                    "it and run inspect on the local copy")
-            total = _total_from_content_range(resp.headers.get("Content-Range", ""))
-            if total is not None:
-                self.size = total
-            data = resp.read(hi - lo + 1)
+        if total is not None:
+            self.size = total
         self.requests += 1
         self.bytes_fetched += len(data)
         self._blocks[idx] = data
