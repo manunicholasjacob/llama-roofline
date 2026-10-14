@@ -450,6 +450,14 @@ Read these before quoting a number.
   is precisely the escape hatch from this roofline. This measures the worst case, which is
   the case most local users are actually in.
 
+## Related tools
+
+Other tools by the same author for people measuring local LLM inference:
+
+- [ml-systems-lab](https://github.com/manunicholasjacob/ml-systems-lab): one YAML config drives llama.cpp and ONNX Runtime sweeps across laptops, Raspberry Pi and GPUs, with power and thermal telemetry.
+- [qgemv-roofline](https://github.com/manunicholasjacob/qgemv-roofline): quantized GEMV kernels for batch-1 LLM decode, written from scratch and measured against a bandwidth roof the repository measures for itself.
+- [gguf-faultscope](https://github.com/manunicholasjacob/gguf-faultscope): what one flipped bit does to a quantized GGUF model, and where it has to land to matter.
+
 ## Citing
 
 If this tool is useful in something you publish or post, please cite it. See
