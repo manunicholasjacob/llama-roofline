@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-10-31
+
 ### Changed
 - Remote `inspect` retries a dropped connection four times, waiting 0.5, 1, 2 and 4 s,
   instead of twice; a reset partway through a response body is now retried as well,
@@ -13,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README: the substitution table notes that the fallback type depends on the llama.cpp
   build (Qwen's own Q2_K and Q3_K_M files carry IQ4_NL where the table's build wrote
   Q4_0, at the same bits per weight).
+- README: a Related tools section linking the sibling measurement tools, one line each.
 
 ## [0.2.3] - 2026-10-13
 
