@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README: the substitution table notes that the fallback type depends on the llama.cpp
   build (Qwen's own Q2_K and Q3_K_M files carry IQ4_NL where the table's build wrote
   Q4_0, at the same bits per weight).
+- Package metadata gives the licence as the SPDX expression `MIT` with `license-files`
+  (PEP 639) instead of the deprecated table and classifier, which setuptools warned about
+  on every build; the build now needs setuptools 77 or later.
 
 ## [0.2.3] - 2026-10-13
 
