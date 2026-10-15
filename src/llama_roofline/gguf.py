@@ -99,6 +99,46 @@ def _read_string(f) -> str:
     return _read(f, n).decode("utf-8", errors="replace")
 
 
+# No real header is anywhere near this long; a count that skips further is corrupt.
+_MAX_SKIP = 1 << 62
+
+
+def _skip(f, nbytes: int, count: int) -> None:
+    """Seek past ``nbytes`` of array data, or say why the count cannot be right.
+
+    A corrupt count can ask for a seek no file object accepts: a local file raises
+    ValueError past 2**63, and ``BytesIO`` raises OverflowError past its ssize_t, which
+    is 2**31 under Pyodide. Either way the file is not GGUF, so say so.
+    """
+    if nbytes > _MAX_SKIP:
+        raise GGUFError(f"implausible array length {count}")
+    try:
+        f.seek(nbytes, os.SEEK_CUR)
+    except (ValueError, OverflowError):
+        raise GGUFError(f"implausible array length {count}") from None
+
+
+def _check_within(f) -> None:
+    """Raise GGUFTruncated if a skip left the position past the end of the data.
+
+    A seek past the end succeeds, and the next read finds the truncation. When the
+    skipped array is the last thing in the header nothing reads after it, so check.
+    """
+    pos = f.tell()
+    size = getattr(f, "size", None)  # RangeReader: from Content-Range, None if unknown
+    if size is None and hasattr(f, "fileno") and hasattr(f, "seekable"):
+        try:
+            size = os.fstat(f.fileno()).st_size
+        except (OSError, ValueError, AttributeError):
+            size = None
+    if size is None and hasattr(f, "getbuffer"):  # BytesIO, as the browser inspector uses
+        with f.getbuffer() as buf:
+            size = len(buf)
+    if isinstance(size, int) and pos > size:
+        raise GGUFTruncated("the file ends inside its own header (an incomplete "
+                            "download?)")
+
+
 def _read_value(f, vtype: int, _depth: int = 0) -> Any:
     if vtype == _STRING:
         return _read_string(f)
@@ -109,7 +149,7 @@ def _read_value(f, vtype: int, _depth: int = 0) -> Any:
         (count,) = struct.unpack("<Q", _read(f, 8))
         # Token vocabularies are huge and useless to us: skip past them cheaply.
         if etype in _SCALAR_FMT:
-            f.seek(struct.calcsize(_SCALAR_FMT[etype]) * count, os.SEEK_CUR)
+            _skip(f, struct.calcsize(_SCALAR_FMT[etype]) * count, count)
             return {"_array": True, "type": etype, "len": count, "skipped": True}
         for _ in range(count):
             _read_value(f, etype, _depth + 1)
@@ -148,6 +188,7 @@ def _read_header(f, max_kv: int = 4096):
         key = _read_string(f)
         (vtype,) = struct.unpack("<I", _read(f, 4))
         kv[key] = _read_value(f, vtype)
+    _check_within(f)
     return kv, n_tensors
 
 

@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `SECURITY.md`: what the tool reads and runs, and how to report a problem privately.
+
 ### Changed
 - Remote `inspect` retries a dropped connection four times, waiting 0.5, 1, 2 and 4 s,
   instead of twice; a reset partway through a response body is now retried as well,
@@ -16,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Package metadata gives the licence as the SPDX expression `MIT` with `license-files`
   (PEP 639) instead of the deprecated table and classifier, which setuptools warned about
   on every build; the build now needs setuptools 77 or later.
+
+### Fixed
+- A GGUF header whose array claims an impossible element count (for example 2**62)
+  now ends in a `GGUFError` ("implausible array length") instead of an uncaught
+  `ValueError` from `describe()` and `read_tensors()`, or an `OverflowError` in the
+  browser inspector. An array skip that runs past the end of the file is now reported
+  as truncation even when it is the last thing in the header; before, the parse
+  succeeded with a data section beyond the end of the file. Local files, `BytesIO`
+  and remote `inspect` all take this path.
 
 ## [0.2.3] - 2026-10-13
 
