@@ -9,6 +9,12 @@ add yours**: open an issue with the "Results gallery" template. Hardware I do no
 the most useful thing anyone can contribute, and results that *disagree* with the model
 are more interesting than results that confirm it.
 
+No llama.cpp build at hand? [`colab_cpu.ipynb`](colab_cpu.ipynb) does the whole thing on a
+Google Colab CPU runtime or any Linux x86-64 machine: it fetches the official prebuilt
+`llama-bench`, one small model, runs `diagnose`, and prints a filled-in issue body for you to
+read and paste.
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/manunicholasjacob/llama-roofline/blob/main/examples/colab_cpu.ipynb)
+
 | device | memory | models | ceiling | fitted BW_eff | R² | utilisation | verdict |
 |---|---|---:|---:|---:|---:|---|---|
 | [Intel i7-12700H](x86-i7-12700H/) | DDR5-4800, 34 GB | 7 (0.5B to 7B) | 53.9 GB/s | 37.65 GB/s | 0.987 | 65-97% | memory-bound |

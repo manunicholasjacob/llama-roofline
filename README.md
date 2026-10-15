@@ -382,6 +382,8 @@ than any one setting, and every report the tool prints now says so next to the n
 **Please add yours.** Open an issue with the "Results gallery" template and paste your
 `report.md`. Hardware I do not own is the most useful contribution anyone can make, and a
 result that *contradicts* the model is more interesting than one that confirms it.
+No llama.cpp build? [`examples/colab_cpu.ipynb`](examples/colab_cpu.ipynb) runs the whole
+thing on a Colab CPU runtime or any Linux x86-64 machine and prints the issue body for you.
 
 ## How it works
 
