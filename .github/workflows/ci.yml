@@ -18,6 +18,13 @@ jobs:
           # macos-latest runners are arm64; 3.9 wheels are not published for it.
           - os: macos-latest
             python-version: "3.9"
+          # ubuntu-latest moved to 26.04 on 19 Oct 2026, which has no Python 3.9 build
+          # for setup-python. 3.9 runs on 24.04 instead (see the include below).
+          - os: ubuntu-latest
+            python-version: "3.9"
+        include:
+          - os: ubuntu-24.04
+            python-version: "3.9"
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
