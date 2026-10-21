@@ -6,3 +6,6 @@ contact_links:
   - name: Documentation
     url: https://manunicholasjacob.com/llama-roofline/
     about: The method, the guide to memory-bound decode, and the results gallery.
+  - name: Questions
+    url: https://github.com/manunicholasjacob/llama-roofline/discussions
+    about: Ask how to use the tool or how to read a report card.

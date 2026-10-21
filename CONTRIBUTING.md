@@ -1,5 +1,10 @@
 # Contributing
 
+Questions go to [Discussions](https://github.com/manunicholasjacob/llama-roofline/discussions).
+Bugs go to [Issues](https://github.com/manunicholasjacob/llama-roofline/issues) with the bug
+report template: include `llama-roofline --version`, the command you ran, and the full
+output. A GGUF file the tool cannot read has its own template.
+
 Two kinds of contribution are especially wanted.
 
 ## 1. Send in your report card
@@ -40,7 +45,7 @@ House rules:
   numbers. If a result is uncertain, the report says it is uncertain. The ">100% of peak"
   warning is the model for this: when the measurement does not support the conclusion,
   say what is actually known.
-- Add a test. The suite runs in under two seconds and needs neither llama.cpp nor a GGUF
+- Add a test. The suite runs in well under a minute and needs neither llama.cpp nor a GGUF
   file; synthesise what you need the way `tests/test_gguf.py` does.
 
 ## A GGUF type it cannot size
