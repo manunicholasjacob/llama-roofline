@@ -151,3 +151,51 @@ def test_extra_bench_args_are_passed_through(monkeypatch):
     seen = _capture_cmd(monkeypatch)
     bench.bench_model("llama-bench", "m.gguf", threads=8, extra_args=["-ctk", "q8_0"])
     assert seen["cmd"][-2:] == ["-ctk", "q8_0"]
+
+
+# The failure paths below are what a user actually sees when llama-bench cannot run, so
+# each one must end in a BenchError with a message that names the cause, never in a raw
+# subprocess exception or a traceback from the JSON parser.
+
+def test_timeout_becomes_bench_error(monkeypatch):
+    def fake_run(cmd, **kwargs):
+        raise bench.subprocess.TimeoutExpired(cmd, kwargs.get("timeout"))
+
+    monkeypatch.setattr(bench.subprocess, "run", fake_run)
+    with pytest.raises(bench.BenchError, match="timed out after 5"):
+        bench.bench_model("llama-bench", "m.gguf", threads=4, timeout=5)
+
+
+def test_unlaunchable_binary_becomes_bench_error(monkeypatch):
+    def fake_run(cmd, **kwargs):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(bench.subprocess, "run", fake_run)
+    with pytest.raises(bench.BenchError, match="could not execute llama-bench"):
+        bench.bench_model("llama-bench", "m.gguf", threads=4)
+
+
+def test_nonzero_exit_reports_the_real_error_not_the_banner(monkeypatch):
+    class Failed:
+        returncode = 1
+        stdout = b""
+        stderr = (b"load_backend: loaded CPU backend from libggml-cpu.so\n"
+                  b"llama_model_load: error loading model: tensor 'x' data is not"
+                  b" within the file bounds\n")
+
+    monkeypatch.setattr(bench.subprocess, "run", lambda cmd, **kw: Failed())
+    with pytest.raises(bench.BenchError) as info:
+        bench.bench_model("llama-bench", "m.gguf", threads=4)
+    message = str(info.value)
+    assert message.startswith("llama-bench exited 1: ")
+    assert "not within the file bounds" in message
+    assert "load_backend" not in message
+
+
+def test_result_records_the_settings_it_ran_with(monkeypatch):
+    seen = _capture_cmd(monkeypatch)
+    r = bench.bench_model("llama-bench", "m.gguf", threads=6, n_prompt=64, n_gen=32, reps=2)
+    assert (r["threads"], r["n_prompt"], r["n_gen"], r["reps"]) == (6, 64, 32, 2)
+    assert r["cmd"] == seen["cmd"]
+    assert seen["cmd"][seen["cmd"].index("-o") + 1] == "json"
+    assert r["decode_ts"] is not None and r["prefill_ts"] is not None
