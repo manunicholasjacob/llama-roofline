@@ -370,6 +370,24 @@ cmake -B build && cmake --build build --target llama-bench -j
 Ollama and LM Studio both bundle llama.cpp and neither exposes `llama-bench`, so having
 one of them installed does not count.
 
+### Trying it without llama.cpp
+
+Two of the six subcommands need no benchmark binary at all, so you can see what the tool does
+before installing anything else:
+
+```bash
+llama-roofline inspect hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF/qwen2.5-0.5b-instruct-q4_k_m.gguf
+llama-roofline advise --core cortex-a76
+```
+
+The first reads a model's header over HTTP range requests and prints what is actually inside
+it; the second answers the format question from measurements already shipped with the build.
+The test suite also runs without llama.cpp:
+
+```bash
+python -m pytest -q
+```
+
 ## Results gallery
 
 See [`examples/`](examples/) for full output from an Intel i7-12700H (DDR5) and a
