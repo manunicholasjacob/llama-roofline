@@ -26,6 +26,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
+from . import contention
+
 # Big enough to blow past any last-level cache, small enough to be polite on a 2 GB Pi.
 DEFAULT_WORKING_SET_MB = 512
 MIN_WORKING_SET_MB = 64
@@ -120,6 +122,11 @@ def measure(working_set_mb: Optional[int] = None,
 
     results: Dict[str, Dict[str, float]] = {}
     raw: Dict[str, Dict[str, List[float]]] = {}
+    # Watch what else is on the machine for exactly the window we measure in. Constant
+    # competition depresses every repetition equally, so the stability check below cannot
+    # see it; see contention.py for the measured case that prompted this.
+    cpu_before = contention.snapshot()
+    procs_before = contention.process_table()
     try:
         for nt in thread_counts:
             sl64 = [(i * n64 // nt, (i + 1) * n64 // nt) for i in range(nt)]
@@ -141,6 +148,11 @@ def measure(working_set_mb: Optional[int] = None,
                 progress(nt, row)
     finally:
         del a64, b64, a32, b32
+    cpu_after = contention.snapshot()
+    foreign = contention.foreign_fraction(cpu_before, cpu_after)
+    offenders = (contention.top_foreign(procs_before, contention.process_table())
+                 if foreign is not None and foreign >= contention.CONTENTION_THRESHOLD
+                 else [])
 
     read_kernels = ("sum", "max", "dot")
     peak = 0.0
@@ -166,14 +178,24 @@ def measure(working_set_mb: Optional[int] = None,
         "method": ("numpy threaded read kernels (sum/max/dot); ceiling is the best "
                    "read-only kernel, a measured lower bound on true peak"),
         "source": "measured",
+        "foreign_cpu_fraction": foreign,
     }
+    warnings: List[str] = []
     if stability is not None and stability < STABILITY_THRESHOLD:
         out["unstable"] = True
-        out["warning"] = (
+        warnings.append(
             f"the bandwidth measurement was unstable (repetitions varied by "
             f"{100 * (1 - stability):.0f}% around the best result), which usually means "
             f"something else was using the machine. The ceiling is probably too low, and "
             f"every utilisation percentage derived from it is therefore too high. Close "
             f"other applications and re-run, or pass --peak-bw with a known-good number."
         )
+    contended = contention.describe(foreign, offenders)
+    if contended:
+        out["contended"] = True
+        if offenders:
+            out["busiest_other_processes"] = [name for name, _ in offenders]
+        warnings.append(contended)
+    if warnings:
+        out["warning"] = " Also, ".join(warnings) if len(warnings) > 1 else warnings[0]
     return out

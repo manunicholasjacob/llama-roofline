@@ -71,6 +71,37 @@ ceiling = membw.measure(reps=3)
 print(ceiling["peak_read_GBs"], ceiling["best_threads"])
 ```
 
+### Checking the ceiling was measured on an idle machine
+
+Two keys answer that, and they catch different things.
+
+`stability` is the median-to-best ratio over repetitions. Below `STABILITY_THRESHOLD`
+(0.75) the result carries `unstable: True` and a `warning`. This catches competition that
+comes and goes, because that makes the repetitions disagree.
+
+`foreign_cpu_fraction` is the share of the machine's total CPU capacity used by *other*
+processes while the measurement ran, from `/proc` deltas. Above
+`contention.CONTENTION_THRESHOLD` (0.10) the result carries `contended: True`,
+`busiest_other_processes` and a `warning`. This catches the case `stability` cannot:
+competition that lasts for the whole measurement depresses every repetition equally, so
+stability stays high while the ceiling is wrong. On a Galaxy M21 running Android's
+background dexopt job, the ceiling read 6.35 GB/s against 9.32 GB/s on the same quiet
+device, 32% low, at stability 0.85.
+
+`foreign_cpu_fraction` is `None` where `/proc` is unavailable, which includes Windows and
+macOS. `None` means the check could not run, not that the machine was idle.
+
+A `contended` warning says the machine was busy, not that the number is wrong. What it
+costs depends on whether the other work touched memory: two CPU-only spinners on a Pi 5
+take the fraction to 0.50 and leave the ceiling unchanged. Treat it as a reason to
+re-measure and compare.
+
+```python
+ceiling = membw.measure(reps=3)
+if ceiling.get("contended") or ceiling.get("unstable"):
+    print(ceiling["warning"])
+```
+
 ## Apply the roofline
 
 `roofline.analyze(models, peak_read_GBs) -> dict`

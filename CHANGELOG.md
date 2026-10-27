@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `membw.measure` now reports `foreign_cpu_fraction`, the share of the machine's total CPU
+  capacity used by other processes while the ceiling was being measured, read from `/proc`
+  deltas. Above 10% the result carries `contended: True`, `busiest_other_processes` and a
+  `warning`. This covers the gap the comment beside `STABILITY_THRESHOLD` already named:
+  competition that lasts for the whole measurement depresses every repetition equally, so
+  stability stays high while the ceiling is wrong. Measured case: on a Galaxy M21 running
+  Android's background dexopt job, the same kernels with the same arguments read 6.35 GB/s
+  against 9.32 GB/s on the same quiet device, 32% low, at stability 0.85 and 0.87. The job
+  ran at nice 10, which yields the CPU but not memory bandwidth. The key is `None` where
+  `/proc` is unavailable, including Windows and macOS, because a check that cannot run must
+  not look like a check that passed.
+
 ### Changed
 - Remote `inspect` retries a dropped connection four times, waiting 0.5, 1, 2 and 4 s,
   instead of twice; a reset partway through a response body is now retried as well,
