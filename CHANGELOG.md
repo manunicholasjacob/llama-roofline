@@ -8,16 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `membw.measure` now reports `foreign_cpu_fraction`, the share of the machine's total CPU
-  capacity used by other processes while the ceiling was being measured, read from `/proc`
-  deltas. Above 10% the result carries `contended: True`, `busiest_other_processes` and a
-  `warning`. This covers the gap the comment beside `STABILITY_THRESHOLD` already named:
-  competition that lasts for the whole measurement depresses every repetition equally, so
-  stability stays high while the ceiling is wrong. Measured case: on a Galaxy M21 running
-  Android's background dexopt job, the same kernels with the same arguments read 6.35 GB/s
-  against 9.32 GB/s on the same quiet device, 32% low, at stability 0.85 and 0.87. The job
-  ran at nice 10, which yields the CPU but not memory bandwidth. The key is `None` where
-  `/proc` is unavailable, including Windows and macOS, because a check that cannot run must
-  not look like a check that passed.
+  capacity used by other processes while the ceiling was being measured. Above 10% the
+  result carries `contended: True`, `busiest_other_processes` and a `warning`. This covers
+  the gap the comment beside `STABILITY_THRESHOLD` already named: competition that lasts
+  for the whole measurement depresses every repetition equally, so stability stays high
+  while the ceiling is wrong. Measured case: on a Galaxy M21 running Android's background
+  dexopt job, the same kernels with the same arguments read 6.35 GB/s against 9.32 GB/s on
+  the same quiet device, 32% low, at stability 0.85 and 0.87. That job runs at nice 10,
+  which yields the CPU but not memory bandwidth, and Android schedules it when the device
+  is idle and charging, which is the state you create in order to benchmark a phone.
+
+  Works on Linux, Android and Windows: it divides by the aggregate CPU counter, which
+  already sums over every logical processor, so the platform's units cancel and no clock
+  rate or core count is needed. Process names come from `/proc` and so are Linux and
+  Android only; Windows still reports the fraction. The key is `None` when no counter could
+  be read, or when one moved backwards during the window, which Windows counters do,
+  because a check that cannot run must not look like a check that passed.
+
+  For calibration: idle Pi 5 0.017, Windows laptop in ordinary desktop use 0.205 to 0.228,
+  Android with dexopt around 0.6. A shared CI runner is flagged as well, which is correct;
+  the two stability tests now pin the machine state so they test stability rather than
+  whatever else the runner happens to be doing.
 
 ### Changed
 - Remote `inspect` retries a dropped connection four times, waiting 0.5, 1, 2 and 4 s,

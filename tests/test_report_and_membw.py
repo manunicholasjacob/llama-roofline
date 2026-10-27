@@ -183,9 +183,23 @@ def test_nice_log_ticks_cover_the_range():
     assert plot._plain(0.5) == "0.5" and plot._plain(100.0) == "100"
 
 
+def _pretend_machine_is_unreadable(monkeypatch):
+    """Make the foreign-CPU check report "could not check" for the duration of a test.
+
+    The stability tests below mock the bandwidth samples, so the only live thing left is
+    the contention check, which reads the real host. Without this, whether they pass
+    depends on what else happens to be running: a shared CI runner is genuinely busy, and
+    the suite failed there on `Runner.Worker` while passing on a quiet laptop. Pinning it
+    keeps these tests about the stability logic they are named for.
+    """
+    monkeypatch.setattr(membw.contention, "snapshot", lambda: None)
+    monkeypatch.setattr(membw.contention, "process_table", lambda: None)
+
+
 def test_membw_flags_unstable_measurement(monkeypatch):
     """Best-of-N hides constant contention; disagreeing repetitions must be reported."""
     pytest.importorskip("numpy")
+    _pretend_machine_is_unreadable(monkeypatch)
     calls = {"n": 0}
 
     def flaky(fn, slices, nthreads, bytes_moved, reps):
@@ -199,16 +213,57 @@ def test_membw_flags_unstable_measurement(monkeypatch):
     assert m["unstable"] is True
     assert m["stability"] == pytest.approx(0.1)
     assert "unstable" in m["warning"] and "--peak-bw" in m["warning"]
+    assert "contended" not in m
 
 
 def test_membw_stable_measurement_has_no_warning(monkeypatch):
     pytest.importorskip("numpy")
+    _pretend_machine_is_unreadable(monkeypatch)
     monkeypatch.setattr(membw, "_samples",
                         lambda fn, s, nt, b, r: [50.0, 49.0, 50.5, 49.5, 50.0])
     m = membw.measure(working_set_mb=membw.MIN_WORKING_SET_MB, thread_counts=[1], reps=5)
     assert "unstable" not in m
+    assert "contended" not in m
     assert "warning" not in m
+    assert m["foreign_cpu_fraction"] is None
     assert m["stability"] > membw.STABILITY_THRESHOLD
+
+
+def test_membw_flags_a_stable_measurement_taken_on_a_busy_machine(monkeypatch):
+    """The Android case: stability passes, and the ceiling is still wrong.
+
+    Half the machine went to someone else, and the repetitions agree to within 3%. The old
+    check sees nothing to report here, which is exactly how a 32%-low ceiling got recorded
+    as a measurement.
+    """
+    pytest.importorskip("numpy")
+    monkeypatch.setattr(membw, "_samples",
+                        lambda fn, s, nt, b, r: [50.0, 49.0, 50.5, 49.5, 50.0])
+    ticks = iter([{"idle": 0, "total": 0, "own": 0},
+                  {"idle": 0, "total": 1000, "own": 500}])
+    monkeypatch.setattr(membw.contention, "snapshot", lambda: next(ticks))
+    monkeypatch.setattr(membw.contention, "process_table", lambda: {1: ("dex2oat", 0)})
+    m = membw.measure(working_set_mb=membw.MIN_WORKING_SET_MB, thread_counts=[1], reps=5)
+    assert m["stability"] > membw.STABILITY_THRESHOLD   # the old check would pass this
+    assert "unstable" not in m                          # and report nothing
+    assert m["contended"] is True                       # the new one does not
+    assert m["foreign_cpu_fraction"] == pytest.approx(0.5)
+    assert "50%" in m["warning"]
+
+
+def test_membw_reports_both_problems_when_both_are_present(monkeypatch):
+    pytest.importorskip("numpy")
+    monkeypatch.setattr(membw, "_samples",
+                        lambda fn, s, nt, b, r: [100.0, 10.0, 10.0, 10.0, 10.0])
+    ticks = iter([{"idle": 0, "total": 0, "own": 0},
+                  {"idle": 0, "total": 1000, "own": 0}])
+    monkeypatch.setattr(membw.contention, "snapshot", lambda: next(ticks))
+    monkeypatch.setattr(membw.contention, "process_table", lambda: None)
+    m = membw.measure(working_set_mb=membw.MIN_WORKING_SET_MB, thread_counts=[1], reps=5)
+    assert m["unstable"] is True and m["contended"] is True
+    # One warning string carries both, because every call site prints exactly one.
+    assert "repetitions varied" in m["warning"] and "100%" in m["warning"]
+    assert m["warning"].count(" Also, ") == 1
 
 
 def test_median_helper():

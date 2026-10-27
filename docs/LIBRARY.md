@@ -80,21 +80,27 @@ Two keys answer that, and they catch different things.
 comes and goes, because that makes the repetitions disagree.
 
 `foreign_cpu_fraction` is the share of the machine's total CPU capacity used by *other*
-processes while the measurement ran, from `/proc` deltas. Above
-`contention.CONTENTION_THRESHOLD` (0.10) the result carries `contended: True`,
-`busiest_other_processes` and a `warning`. This catches the case `stability` cannot:
-competition that lasts for the whole measurement depresses every repetition equally, so
-stability stays high while the ceiling is wrong. On a Galaxy M21 running Android's
-background dexopt job, the ceiling read 6.35 GB/s against 9.32 GB/s on the same quiet
-device, 32% low, at stability 0.85.
+processes while the measurement ran. Above `contention.CONTENTION_THRESHOLD` (0.10) the
+result carries `contended: True`, `busiest_other_processes` and a `warning`. This catches
+the case `stability` cannot: competition that lasts for the whole measurement depresses
+every repetition equally, so stability stays high while the ceiling is wrong. On a Galaxy
+M21 running Android's background dexopt job, the ceiling read 6.35 GB/s against 9.32 GB/s
+on the same quiet device, 32% low, at stability 0.85.
 
-`foreign_cpu_fraction` is `None` where `/proc` is unavailable, which includes Windows and
-macOS. `None` means the check could not run, not that the machine was idle.
+It works on Linux, Android and Windows, because it divides by the aggregate CPU counter,
+which already sums over every logical processor, so the platform's units cancel and no
+clock rate or core count is needed. `busiest_other_processes` is Linux and Android only,
+since it comes from `/proc`; Windows still reports the fraction, which is the useful half.
+`foreign_cpu_fraction` is `None` when no counter could be read, or when one moved
+backwards during the window, which Windows counters do. `None` means the check could not
+run, never that the machine was idle.
 
 A `contended` warning says the machine was busy, not that the number is wrong. What it
 costs depends on whether the other work touched memory: two CPU-only spinners on a Pi 5
 take the fraction to 0.50 and leave the ceiling unchanged. Treat it as a reason to
-re-measure and compare.
+re-measure and compare. For calibration: idle Pi 5 0.017, Windows laptop in ordinary
+desktop use 0.205 to 0.228, Android with dexopt around 0.6. A shared CI runner is flagged
+too, which is correct and worth knowing if you measure ceilings in CI.
 
 ```python
 ceiling = membw.measure(reps=3)
